@@ -25,6 +25,26 @@ void HostManager::setMessaging(NativeMessaging* messaging)
                 this, &HostManager::onMessageReceived);
         connect(m_messaging, &NativeMessaging::errorOccurred,
                 this, &HostManager::onMessagingError);
+    } else {
+        // Clear all state when messaging is disconnected (process stopped)
+        bool hadClients = !m_clients.isEmpty();
+        m_clients.clear();
+        m_deviceId.clear();
+        m_accessCode.clear();
+        m_isConnected = false;
+        m_signalingState = "disconnected";
+        m_signalingRetryCount = 0;
+        m_signalingNextRetryIn = 0;
+        m_signalingError.clear();
+        
+        emit deviceIdChanged();
+        emit accessCodeChanged();
+        emit connectionStatusChanged();
+        emit signalingStateChanged();
+        if (hadClients) {
+            emit clientCountChanged();
+            emit clientListChanged();
+        }
     }
 }
 

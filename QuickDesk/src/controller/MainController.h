@@ -27,6 +27,8 @@ class MainController : public QObject {
     Q_PROPERTY(ServerManager* serverManager READ serverManager CONSTANT)
     Q_PROPERTY(HostManager* hostManager READ hostManager CONSTANT)
     Q_PROPERTY(ClientManager* clientManager READ clientManager CONSTANT)
+    Q_PROPERTY(QString hostProcessStatus READ hostProcessStatus NOTIFY hostProcessStatusChanged)
+    Q_PROPERTY(QString clientProcessStatus READ clientProcessStatus NOTIFY clientProcessStatusChanged)
 
     // Host properties (convenience for QML)
     Q_PROPERTY(QString deviceId READ deviceId NOTIFY deviceIdChanged)
@@ -113,6 +115,10 @@ public:
     int signalingNextRetryIn() const;
     QString signalingError() const;
     QString signalingStatusText() const;
+    
+    // Process status
+    QString hostProcessStatus() const;
+    QString clientProcessStatus() const;
 
 signals:
     void initializedChanged();
@@ -122,15 +128,23 @@ signals:
     void accessCodeChanged();
     void hostConnectionChanged();
     void signalingStateChanged();
+    void hostProcessStatusChanged();
+    void clientProcessStatusChanged();
+    void hostProcessRestarting(int retryCount, int maxRetries);
+    void clientProcessRestarting(int retryCount, int maxRetries);
 
 private slots:
     void onHostProcessStarted();
     void onHostProcessStopped(int exitCode);
     void onHostProcessError(const QString& error);
+    void onHostProcessRestarting(int retryCount, int maxRetries);
+    void onHostStatusChanged();
     
     void onClientProcessStarted();
     void onClientProcessStopped(int exitCode);
     void onClientProcessError(const QString& error);
+    void onClientProcessRestarting(int retryCount, int maxRetries);
+    void onClientStatusChanged();
 
     void onHostReady(const QString& deviceId, const QString& accessCode);
 
@@ -144,6 +158,8 @@ private:
     QString m_initStatus = "未初始化";
     QString m_deviceId;
     QString m_accessCode;
+    QString m_lastServerUrl;  // For auto-reconnect after Host restart
+    bool m_hostWasHosting = false;  // Was Host connected before restart
 
     void updateInitStatus(const QString& status);
     void checkInitialized();

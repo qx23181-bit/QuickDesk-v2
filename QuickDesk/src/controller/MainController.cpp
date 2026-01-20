@@ -24,6 +24,10 @@ MainController::MainController(QObject* parent)
             this, &MainController::onHostProcessStopped);
     connect(m_processManager.get(), &ProcessManager::hostProcessError,
             this, &MainController::onHostProcessError);
+    connect(m_processManager.get(), &ProcessManager::hostProcessRestarting,
+            this, &MainController::onHostProcessRestarting);
+    connect(m_processManager.get(), &ProcessManager::hostStatusChanged,
+            this, &MainController::onHostStatusChanged);
     
     connect(m_processManager.get(), &ProcessManager::clientProcessStarted,
             this, &MainController::onClientProcessStarted);
@@ -31,6 +35,10 @@ MainController::MainController(QObject* parent)
             this, &MainController::onClientProcessStopped);
     connect(m_processManager.get(), &ProcessManager::clientProcessError,
             this, &MainController::onClientProcessError);
+    connect(m_processManager.get(), &ProcessManager::clientProcessRestarting,
+            this, &MainController::onClientProcessRestarting);
+    connect(m_processManager.get(), &ProcessManager::clientStatusChanged,
+            this, &MainController::onClientStatusChanged);
 
     // Connect HostManager signals
     connect(m_hostManager.get(), &HostManager::hostReady,
@@ -97,11 +105,14 @@ void MainController::startHosting(const QString& serverUrl)
 {
     QString url = serverUrl.isEmpty() ? getDefaultServerUrl() : serverUrl;
     qInfo() << "Starting hosting on:" << url;
+    m_lastServerUrl = url;
+    m_hostWasHosting = true;
     m_hostManager->connectToServer(url);
 }
 
 void MainController::stopHosting()
 {
+    m_hostWasHosting = false;
     m_hostManager->disconnectFromServer();
 }
 
@@ -236,9 +247,44 @@ QString MainController::signalingStatusText() const
     return state;
 }
 
+QString MainController::hostProcessStatus() const
+{
+    QString status = m_processManager->hostStatus();
+    if (status == "running") {
+        return "运行中";
+    } else if (status == "stopped") {
+        return "已停止";
+    } else if (status == "failed") {
+        return "启动失败";
+    } else if (status.startsWith("restarting:")) {
+        int count = status.mid(11).toInt();
+        return QString("重启中(第%1次)").arg(count);
+    }
+    return status;
+}
+
+QString MainController::clientProcessStatus() const
+{
+    QString status = m_processManager->clientStatus();
+    if (status == "running") {
+        return "运行中";
+    } else if (status == "stopped") {
+        return "已停止";
+    } else if (status == "failed") {
+        return "启动失败";
+    } else if (status.startsWith("restarting:")) {
+        int count = status.mid(11).toInt();
+        return QString("重启中(第%1次)").arg(count);
+    }
+    return status;
+}
+
 void MainController::onHostProcessStarted()
 {
     qInfo() << "Host process started";
+    
+    // Reset retry count on successful start
+    m_processManager->resetHostRetryCount();
     
     // Set up Native Messaging
     m_hostManager->setMessaging(m_processManager->hostMessaging());
@@ -247,6 +293,14 @@ void MainController::onHostProcessStarted()
     QTimer::singleShot(500, this, [this]() {
         m_hostManager->sendHello();
         checkInitialized();
+        
+        // Auto-reconnect to signaling server if we were hosting before
+        if (m_hostWasHosting && !m_lastServerUrl.isEmpty()) {
+            qInfo() << "Auto-reconnecting to signaling server after Host restart";
+            QTimer::singleShot(500, this, [this]() {
+                m_hostManager->connectToServer(m_lastServerUrl);
+            });
+        }
     });
 }
 
@@ -254,6 +308,11 @@ void MainController::onHostProcessStopped(int exitCode)
 {
     qInfo() << "Host process stopped with exit code:" << exitCode;
     m_hostManager->setMessaging(nullptr);
+    // Clear UI state (will be restored after restart)
+    m_deviceId.clear();
+    m_accessCode.clear();
+    emit deviceIdChanged();
+    emit accessCodeChanged();
 }
 
 void MainController::onHostProcessError(const QString& error)
@@ -262,9 +321,24 @@ void MainController::onHostProcessError(const QString& error)
     emit initializationFailed(QString("Host error: %1").arg(error));
 }
 
+void MainController::onHostProcessRestarting(int retryCount, int maxRetries)
+{
+    qInfo() << "Host process restarting, attempt" << retryCount << "of" << maxRetries;
+    updateInitStatus(QString("Host 进程重启中 (%1/%2)...").arg(retryCount).arg(maxRetries));
+    emit hostProcessRestarting(retryCount, maxRetries);
+}
+
+void MainController::onHostStatusChanged()
+{
+    emit hostProcessStatusChanged();
+}
+
 void MainController::onClientProcessStarted()
 {
     qInfo() << "Client process started";
+    
+    // Reset retry count on successful start
+    m_processManager->resetClientRetryCount();
     
     // Set up Native Messaging
     m_clientManager->setMessaging(m_processManager->clientMessaging());
@@ -286,6 +360,17 @@ void MainController::onClientProcessError(const QString& error)
 {
     qWarning() << "Client process error:" << error;
     emit initializationFailed(QString("Client error: %1").arg(error));
+}
+
+void MainController::onClientProcessRestarting(int retryCount, int maxRetries)
+{
+    qInfo() << "Client process restarting, attempt" << retryCount << "of" << maxRetries;
+    emit clientProcessRestarting(retryCount, maxRetries);
+}
+
+void MainController::onClientStatusChanged()
+{
+    emit clientProcessStatusChanged();
 }
 
 void MainController::onHostReady(const QString& deviceId, const QString& accessCode)

@@ -26,6 +26,17 @@ void ClientManager::setMessaging(NativeMessaging* messaging)
                 this, &ClientManager::onMessageReceived);
         connect(m_messaging, &NativeMessaging::errorOccurred,
                 this, &ClientManager::onMessagingError);
+    } else {
+        // Clear all state when messaging is disconnected (process stopped)
+        bool hadConnections = !m_connections.isEmpty();
+        m_connections.clear();
+        m_activeConnectionId.clear();
+        // Note: Don't reset m_connectionCounter to avoid ID conflicts after restart
+        
+        if (hadConnections) {
+            emit connectionCountChanged();
+            emit connectionListChanged();
+        }
     }
 }
 

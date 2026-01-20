@@ -12,10 +12,26 @@ namespace quickdesk {
 ProcessManager::ProcessManager(QObject* parent)
     : QObject(parent)
 {
+    // Setup restart timers
+    m_hostRestartTimer.setSingleShot(true);
+    connect(&m_hostRestartTimer, &QTimer::timeout,
+            this, &ProcessManager::onHostRestartTimer);
+    
+    m_clientRestartTimer.setSingleShot(true);
+    connect(&m_clientRestartTimer, &QTimer::timeout,
+            this, &ProcessManager::onClientRestartTimer);
 }
 
 ProcessManager::~ProcessManager()
 {
+    // Stop timers first
+    m_hostRestartTimer.stop();
+    m_clientRestartTimer.stop();
+    
+    // Disable auto-restart during destruction
+    m_hostAutoRestart = false;
+    m_clientAutoRestart = false;
+    
     stopAllProcesses();
 }
 
@@ -45,6 +61,7 @@ bool ProcessManager::startHostProcess()
     // Create Native Messaging handler
     m_hostMessaging = std::make_unique<NativeMessaging>(m_hostProcess.get(), this);
     
+    setHostStatus("running");
     emit hostProcessStarted();
     qInfo() << "Host process started, PID:" << m_hostProcess->processId();
     
@@ -77,6 +94,7 @@ bool ProcessManager::startClientProcess()
     // Create Native Messaging handler
     m_clientMessaging = std::make_unique<NativeMessaging>(m_clientProcess.get(), this);
     
+    setClientStatus("running");
     emit clientProcessStarted();
     qInfo() << "Client process started, PID:" << m_clientProcess->processId();
     
@@ -85,6 +103,9 @@ bool ProcessManager::startClientProcess()
 
 void ProcessManager::stopHostProcess()
 {
+    m_hostRestartTimer.stop();
+    m_hostStoppingIntentionally = true;
+    
     if (m_hostProcess && m_hostProcess->state() != QProcess::NotRunning) {
         qInfo() << "Stopping host process...";
         m_hostProcess->closeWriteChannel(); // Close stdin to trigger graceful exit
@@ -98,10 +119,15 @@ void ProcessManager::stopHostProcess()
     }
     m_hostMessaging.reset();
     m_hostProcess.reset();
+    m_hostRestartCount = 0;
+    setHostStatus("stopped");
 }
 
 void ProcessManager::stopClientProcess()
 {
+    m_clientRestartTimer.stop();
+    m_clientStoppingIntentionally = true;
+    
     if (m_clientProcess && m_clientProcess->state() != QProcess::NotRunning) {
         qInfo() << "Stopping client process...";
         m_clientProcess->closeWriteChannel();
@@ -115,6 +141,8 @@ void ProcessManager::stopClientProcess()
     }
     m_clientMessaging.reset();
     m_clientProcess.reset();
+    m_clientRestartCount = 0;
+    setClientStatus("stopped");
 }
 
 void ProcessManager::stopAllProcesses()
@@ -181,20 +209,192 @@ bool ProcessManager::autoDetectPaths()
     return !hostPath.isEmpty() && !clientPath.isEmpty();
 }
 
+bool ProcessManager::hostAutoRestart() const
+{
+    return m_hostAutoRestart;
+}
+
+void ProcessManager::setHostAutoRestart(bool enabled)
+{
+    if (m_hostAutoRestart != enabled) {
+        m_hostAutoRestart = enabled;
+        emit hostAutoRestartChanged();
+    }
+}
+
+bool ProcessManager::clientAutoRestart() const
+{
+    return m_clientAutoRestart;
+}
+
+void ProcessManager::setClientAutoRestart(bool enabled)
+{
+    if (m_clientAutoRestart != enabled) {
+        m_clientAutoRestart = enabled;
+        emit clientAutoRestartChanged();
+    }
+}
+
+QString ProcessManager::hostStatus() const
+{
+    return m_hostStatus;
+}
+
+QString ProcessManager::clientStatus() const
+{
+    return m_clientStatus;
+}
+
+void ProcessManager::resetHostRetryCount()
+{
+    m_hostRestartCount = 0;
+}
+
+void ProcessManager::resetClientRetryCount()
+{
+    m_clientRestartCount = 0;
+}
+
 void ProcessManager::onHostProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-    Q_UNUSED(status);
-    qInfo() << "Host process finished with exit code:" << exitCode;
-    m_hostMessaging.reset();
+    qInfo() << "Host process finished with exit code:" << exitCode 
+            << "status:" << (status == QProcess::NormalExit ? "NormalExit" : "CrashExit");
+    
+    // Emit signal BEFORE destroying messaging so listeners can disconnect first
     emit hostProcessStopped(exitCode);
+    m_hostMessaging.reset();
+    
+    // Check if we should auto-restart
+    bool isAbnormalExit = (status == QProcess::CrashExit) || (exitCode != 0);
+    
+    if (m_hostStoppingIntentionally) {
+        // User requested stop, don't restart
+        m_hostStoppingIntentionally = false;
+        setHostStatus("stopped");
+        qInfo() << "Host stopped intentionally, not restarting";
+        return;
+    }
+    
+    if (!m_hostAutoRestart) {
+        setHostStatus("stopped");
+        qInfo() << "Host auto-restart disabled";
+        return;
+    }
+    
+    if (!isAbnormalExit) {
+        // Normal exit with code 0, don't restart
+        setHostStatus("stopped");
+        qInfo() << "Host exited normally, not restarting";
+        return;
+    }
+    
+    // Abnormal exit - try to restart
+    if (m_hostRestartCount >= MAX_RESTART_ATTEMPTS) {
+        setHostStatus("failed");
+        QString error = QString("Host process crashed %1 times, giving up").arg(MAX_RESTART_ATTEMPTS);
+        qWarning() << error;
+        emit hostProcessError(error);
+        return;
+    }
+    
+    m_hostRestartCount++;
+    int delay = calculateRestartDelay(m_hostRestartCount);
+    
+    setHostStatus(QString("restarting:%1").arg(m_hostRestartCount));
+    qInfo() << "Host crashed, restarting in" << delay << "ms (attempt" 
+            << m_hostRestartCount << "of" << MAX_RESTART_ATTEMPTS << ")";
+    
+    emit hostProcessRestarting(m_hostRestartCount, MAX_RESTART_ATTEMPTS);
+    m_hostRestartTimer.start(delay);
 }
 
 void ProcessManager::onClientProcessFinished(int exitCode, QProcess::ExitStatus status)
 {
-    Q_UNUSED(status);
-    qInfo() << "Client process finished with exit code:" << exitCode;
-    m_clientMessaging.reset();
+    qInfo() << "Client process finished with exit code:" << exitCode 
+            << "status:" << (status == QProcess::NormalExit ? "NormalExit" : "CrashExit");
+    
+    // Emit signal BEFORE destroying messaging so listeners can disconnect first
     emit clientProcessStopped(exitCode);
+    m_clientMessaging.reset();
+    
+    // Check if we should auto-restart
+    bool isAbnormalExit = (status == QProcess::CrashExit) || (exitCode != 0);
+    
+    if (m_clientStoppingIntentionally) {
+        // User requested stop, don't restart
+        m_clientStoppingIntentionally = false;
+        setClientStatus("stopped");
+        qInfo() << "Client stopped intentionally, not restarting";
+        return;
+    }
+    
+    if (!m_clientAutoRestart) {
+        setClientStatus("stopped");
+        qInfo() << "Client auto-restart disabled";
+        return;
+    }
+    
+    if (!isAbnormalExit) {
+        // Normal exit with code 0, don't restart
+        setClientStatus("stopped");
+        qInfo() << "Client exited normally, not restarting";
+        return;
+    }
+    
+    // Abnormal exit - try to restart
+    if (m_clientRestartCount >= MAX_RESTART_ATTEMPTS) {
+        setClientStatus("failed");
+        QString error = QString("Client process crashed %1 times, giving up").arg(MAX_RESTART_ATTEMPTS);
+        qWarning() << error;
+        emit clientProcessError(error);
+        return;
+    }
+    
+    m_clientRestartCount++;
+    int delay = calculateRestartDelay(m_clientRestartCount);
+    
+    setClientStatus(QString("restarting:%1").arg(m_clientRestartCount));
+    qInfo() << "Client crashed, restarting in" << delay << "ms (attempt" 
+            << m_clientRestartCount << "of" << MAX_RESTART_ATTEMPTS << ")";
+    
+    emit clientProcessRestarting(m_clientRestartCount, MAX_RESTART_ATTEMPTS);
+    m_clientRestartTimer.start(delay);
+}
+
+void ProcessManager::onHostRestartTimer()
+{
+    qInfo() << "Attempting to restart Host process...";
+    if (!startHostProcess()) {
+        // Failed to start, increment count and try again
+        if (m_hostRestartCount < MAX_RESTART_ATTEMPTS) {
+            m_hostRestartCount++;
+            int delay = calculateRestartDelay(m_hostRestartCount);
+            setHostStatus(QString("restarting:%1").arg(m_hostRestartCount));
+            emit hostProcessRestarting(m_hostRestartCount, MAX_RESTART_ATTEMPTS);
+            m_hostRestartTimer.start(delay);
+        } else {
+            setHostStatus("failed");
+            emit hostProcessError("Failed to restart Host after multiple attempts");
+        }
+    }
+}
+
+void ProcessManager::onClientRestartTimer()
+{
+    qInfo() << "Attempting to restart Client process...";
+    if (!startClientProcess()) {
+        // Failed to start, increment count and try again
+        if (m_clientRestartCount < MAX_RESTART_ATTEMPTS) {
+            m_clientRestartCount++;
+            int delay = calculateRestartDelay(m_clientRestartCount);
+            setClientStatus(QString("restarting:%1").arg(m_clientRestartCount));
+            emit clientProcessRestarting(m_clientRestartCount, MAX_RESTART_ATTEMPTS);
+            m_clientRestartTimer.start(delay);
+        } else {
+            setClientStatus("failed");
+            emit clientProcessError("Failed to restart Client after multiple attempts");
+        }
+    }
 }
 
 bool ProcessManager::startProcess(QProcess* process, const QString& exePath, 
@@ -267,6 +467,29 @@ QString ProcessManager::findExecutable(const QString& name)
     }
 
     return QString();
+}
+
+int ProcessManager::calculateRestartDelay(int retryCount) const
+{
+    // Exponential backoff: 2s, 4s, 8s, 16s, 32s (capped at 32s)
+    int delay = BASE_RESTART_DELAY_MS * (1 << (retryCount - 1));
+    return qMin(delay, 32000);
+}
+
+void ProcessManager::setHostStatus(const QString& status)
+{
+    if (m_hostStatus != status) {
+        m_hostStatus = status;
+        emit hostStatusChanged();
+    }
+}
+
+void ProcessManager::setClientStatus(const QString& status)
+{
+    if (m_clientStatus != status) {
+        m_clientStatus = status;
+        emit clientStatusChanged();
+    }
 }
 
 } // namespace quickdesk
