@@ -8,9 +8,10 @@ Window {
     width: 1200
     height: 800
     visible: true
-Item {
-    id: root
-    anchors.fill: parent
+    
+    Item {
+        id: root
+        anchors.fill: parent
     
     // ============ Global Toast ============
     
@@ -22,6 +23,145 @@ Item {
     
     QDMessageBox {
         id: globalMessageBox
+    }
+    
+    // ============ Global Drawers ============
+    
+    QDDrawer {
+        id: leftDrawer
+        width: 320
+        height: parent.height
+        edge: Qt.LeftEdge
+        title: "左侧导航"
+        
+        Column {
+            width: parent.width
+            spacing: Theme.spacingSmall
+            
+            Repeater {
+                model: ["主页", "设置", "关于", "帮助", "反馈"]
+                
+                Rectangle {
+                    width: parent.width
+                    height: Theme.buttonHeightMedium
+                    color: menuItemArea.containsMouse ? Theme.surfaceHover : "transparent"
+                    radius: Theme.radiusSmall
+                    
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingMedium
+                        spacing: Theme.spacingMedium
+                        
+                        Text {
+                            text: FluentIconGlyph.homeGlyph
+                            font.family: "Segoe Fluent Icons"
+                            font.pixelSize: Theme.fontSizeMedium
+                            color: Theme.text
+                            verticalAlignment: Text.AlignVCenter
+                            height: parent.height
+                        }
+                        
+                        Text {
+                            text: modelData
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeMedium
+                            color: Theme.text
+                            verticalAlignment: Text.AlignVCenter
+                            height: parent.height
+                        }
+                    }
+                    
+                    MouseArea {
+                        id: menuItemArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            globalToast.show("点击: " + modelData, QDToast.Type.Info)
+                            leftDrawer.close()
+                        }
+                    }
+                    
+                    Behavior on color {
+                        ColorAnimation { duration: Theme.animationDurationFast }
+                    }
+                }
+            }
+        }
+    }
+    
+    QDDrawer {
+        id: rightDrawer
+        width: 320
+        height: parent.height
+        edge: Qt.RightEdge
+        title: "设置面板"
+        
+        Column {
+            width: parent.width
+            spacing: Theme.spacingMedium
+            
+            Text {
+                text: "显示设置"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+                color: Theme.text
+            }
+            
+            Row {
+                width: parent.width
+                spacing: Theme.spacingMedium
+                
+                Text {
+                    text: "暗黑模式"
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeMedium
+                    color: Theme.text
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - darkModeSwitch.width - parent.spacing
+                }
+                
+                QDSwitch {
+                    id: darkModeSwitch
+                    checked: true
+                    onCheckedChanged: {
+                        globalToast.show(checked ? "已开启暗黑模式" : "已关闭暗黑模式", QDToast.Type.Info)
+                    }
+                }
+            }
+            
+            QDDivider {
+                width: parent.width
+            }
+            
+            Text {
+                text: "通知设置"
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSizeMedium
+                font.weight: Font.DemiBold
+                color: Theme.text
+            }
+            
+            Column {
+                width: parent.width
+                spacing: Theme.spacingSmall
+                
+                QDCheckBox {
+                    text: "桌面通知"
+                    checked: true
+                }
+                
+                QDCheckBox {
+                    text: "声音提示"
+                    checked: false
+                }
+                
+                QDCheckBox {
+                    text: "震动反馈"
+                    checked: true
+                }
+            }
+        }
     }
     
     // ============ Example Dialog ============
@@ -1430,6 +1570,1769 @@ Item {
                             }
                         }
                     }
+                }
+                
+                // ============ Section: TabBar ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "TabBar 标签栏"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: tabBarContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: tabBarContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        // 基础标签栏
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSmall
+                            
+                            QDTabBar {
+                                id: tabBar
+                                width: parent.width
+                                
+                                QDTabButton {
+                                    text: "主页"
+                                    iconSource: FluentIconGlyph.homeGlyph
+                                }
+                                QDTabButton {
+                                    text: "设置"
+                                    iconSource: FluentIconGlyph.settingsGlyph
+                                }
+                                QDTabButton {
+                                    text: "关于"
+                                    iconSource: FluentIconGlyph.infoGlyph
+                                }
+                            }
+                            
+                            Rectangle {
+                                width: parent.width
+                                height: 100
+                                color: Theme.surface
+                                radius: Theme.radiusMedium
+                                border.width: Theme.borderWidthThin
+                                border.color: Theme.border
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: {
+                                        switch(tabBar.currentIndex) {
+                                            case 0: return "主页内容"
+                                            case 1: return "设置内容"
+                                            case 2: return "关于内容"
+                                            default: return ""
+                                        }
+                                    }
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    color: Theme.text
+                                }
+                            }
+                        }
+                        
+                        // 可关闭标签（动态管理）
+                        ColumnLayout {
+                            id: tabContainer
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSmall
+                            
+                            property var tabList: [
+                                { id: 1, text: "文档 1" },
+                                { id: 2, text: "文档 2" },
+                                { id: 3, text: "文档 3" }
+                            ]
+                            property int nextTabId: 4
+                            
+                            signal closeTabRequested(int tabIndex, string tabText)
+                            signal addTabRequested()
+                            
+                            onCloseTabRequested: function(tabIndex, tabText) {
+                                var newList = []
+                                for (var i = 0; i < tabList.length; i++) {
+                                    if (i !== tabIndex) {
+                                        newList.push(tabList[i])
+                                    }
+                                }
+                                tabList = newList
+                                root.children[0].show("已关闭: " + tabText, 1) // QDToast.Type.Info
+                            }
+                            
+                            onAddTabRequested: {
+                                var newList = tabList.slice()
+                                newList.push({ 
+                                    id: nextTabId, 
+                                    text: "文档 " + nextTabId 
+                                })
+                                tabList = newList
+                                nextTabId++
+                                root.children[0].show("已创建新标签", 0) // QDToast.Type.Success
+                            }
+                            
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                QDTabBar {
+                                    id: dynamicTabBar
+                                    Layout.fillWidth: true
+                                    
+                                    Repeater {
+                                        model: tabContainer.tabList.length
+                                        
+                                        QDTabButton {
+                                            required property int index
+                                            text: tabContainer.tabList[index].text
+                                            showCloseButton: true
+                                            onCloseClicked: {
+                                                tabContainer.closeTabRequested(index, text)
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.addGlyph
+                                    buttonStyle: QDIconButton.Style.Subtle
+                                    buttonSize: QDIconButton.Size.Small
+                                    onClicked: {
+                                        tabContainer.addTabRequested()
+                                    }
+                                    QDToolTip { text: "添加新标签" }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: IconButton ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "IconButton 图标按钮"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: iconButtonContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: iconButtonContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        // 不同样式
+                        Row {
+                            spacing: Theme.spacingLarge
+                            
+                            Column {
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "Standard"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSecondary
+                                }
+                                
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.heartGlyph
+                                    buttonStyle: QDIconButton.Style.Standard
+                                    onClicked: globalToast.show("Standard 样式", QDToast.Type.Info)
+                                }
+                            }
+                            
+                            Column {
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "Subtle"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSecondary
+                                }
+                                
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.favoriteStarGlyph
+                                    buttonStyle: QDIconButton.Style.Subtle
+                                    onClicked: globalToast.show("Subtle 样式", QDToast.Type.Info)
+                                }
+                            }
+                            
+                            Column {
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "Accent"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSecondary
+                                }
+                                
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.likeGlyph
+                                    buttonStyle: QDIconButton.Style.Accent
+                                    iconColor: Theme.textOnPrimary
+                                    onClicked: globalToast.show("Accent 样式", QDToast.Type.Success)
+                                }
+                            }
+                            
+                            Column {
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "Transparent"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSecondary
+                                }
+                                
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.moreGlyph
+                                    buttonStyle: QDIconButton.Style.Transparent
+                                    onClicked: globalToast.show("Transparent 样式", QDToast.Type.Info)
+                                }
+                            }
+                        }
+                        
+                        // 不同尺寸
+                        Row {
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "尺寸: "
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.addGlyph
+                                buttonSize: QDIconButton.Size.Small
+                                buttonStyle: QDIconButton.Style.Accent
+                                iconColor: Theme.textOnPrimary
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.addGlyph
+                                buttonSize: QDIconButton.Size.Medium
+                                buttonStyle: QDIconButton.Style.Accent
+                                iconColor: Theme.textOnPrimary
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.addGlyph
+                                buttonSize: QDIconButton.Size.Large
+                                buttonStyle: QDIconButton.Style.Accent
+                                iconColor: Theme.textOnPrimary
+                            }
+                        }
+                        
+                        // 圆形按钮
+                        Row {
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "圆形: "
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.playGlyph
+                                buttonStyle: QDIconButton.Style.Accent
+                                iconColor: Theme.textOnPrimary
+                                circular: true
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.pauseGlyph
+                                buttonStyle: QDIconButton.Style.Standard
+                                circular: true
+                            }
+                            
+                            QDIconButton {
+                                iconSource: FluentIconGlyph.stopGlyph
+                                buttonStyle: QDIconButton.Style.Subtle
+                                circular: true
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Drawer ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Drawer 抽屉"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: drawerContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: drawerContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Row {
+                            spacing: Theme.spacingMedium
+                            
+                            QDButton {
+                                text: "从左侧打开"
+                                iconText: FluentIconGlyph.globalNavButtonGlyph
+                                onClicked: leftDrawer.open()
+                            }
+                            
+                            QDButton {
+                                text: "从右侧打开"
+                                iconText: FluentIconGlyph.globalNavButtonGlyph
+                                onClicked: rightDrawer.open()
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: ScrollBar ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "ScrollBar 滚动条"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: scrollBarContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: scrollBarContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 200
+                            color: Theme.surface
+                            radius: Theme.radiusMedium
+                            border.width: Theme.borderWidthThin
+                            border.color: Theme.border
+                            
+                            ListView {
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingSmall
+                                clip: true
+                                model: 20
+                                spacing: Theme.spacingSmall
+                                
+                                QQC.ScrollBar.vertical: QDScrollBar {
+                                    policy: QQC.ScrollBar.AsNeeded
+                                }
+                                
+                                delegate: Rectangle {
+                                    width: ListView.view.width
+                                    height: 40
+                                    color: index % 2 === 0 ? Theme.surfaceVariant : Theme.surface
+                                    radius: Theme.radiusSmall
+                                    
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "列表项 " + (index + 1)
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.text
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: ListView ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "ListView 列表视图"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: listViewContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: listViewContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 300
+                            color: Theme.surface
+                            radius: Theme.radiusMedium
+                            border.width: Theme.borderWidthThin
+                            border.color: Theme.border
+                            
+                            QDListView {
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingSmall
+                                
+                                model: ListModel {
+                                    ListElement { 
+                                        icon: "\uE80F"  // Home
+                                        title: "主页"
+                                        subtitle: "应用程序主页"
+                                        trailing: ""
+                                    }
+                                    ListElement { 
+                                        icon: "\uE713"  // Settings
+                                        title: "设置"
+                                        subtitle: "配置应用程序选项"
+                                        trailing: ""
+                                    }
+                                    ListElement { 
+                                        icon: "\uE946"  // Info
+                                        title: "关于"
+                                        subtitle: "查看版本信息和帮助"
+                                        trailing: ""
+                                    }
+                                    ListElement { 
+                                        icon: "\uE8F1"  // User
+                                        title: "用户资料"
+                                        subtitle: "管理个人信息"
+                                        trailing: "编辑"
+                                    }
+                                    ListElement { 
+                                        icon: "\uE7EE"  // Notification
+                                        title: "通知"
+                                        subtitle: "消息和提醒设置"
+                                        trailing: "3"
+                                    }
+                                    ListElement { 
+                                        icon: "\uE72E"  // Shield
+                                        title: "安全与隐私"
+                                        subtitle: "保护您的数据安全"
+                                        trailing: ""
+                                    }
+                                    ListElement { 
+                                        icon: "\uE897"  // Help
+                                        title: "帮助与反馈"
+                                        subtitle: "获取帮助或提交反馈"
+                                        trailing: ""
+                                    }
+                                }
+                                
+                                delegate: QDListItem {
+                                    iconSource: model.icon
+                                    iconColor: Theme.primary
+                                    text: model.title
+                                    subtitle: model.subtitle
+                                    trailing: model.trailing
+                                    showChevron: true
+                                    showSeparator: index < 6
+                                    
+                                    onClicked: {
+                                        globalToast.show("点击: " + model.title, QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Breadcrumb ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Breadcrumb 面包屑导航"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: breadcrumbContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: breadcrumbContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        // 基础面包屑
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "基础面包屑（带图标）:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDBreadcrumb {
+                                items: [
+                                    {icon: FluentIconGlyph.homeGlyph, text: "首页"},
+                                    {text: "文档"},
+                                    {text: "组件"},
+                                    {text: "面包屑"}
+                                ]
+                                onItemClicked: function(index, text) {
+                                    globalToast.show("点击: " + text + " (索引: " + index + ")", QDToast.Type.Info)
+                                }
+                            }
+                        }
+                        
+                        // 简单面包屑
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "简单文本面包屑:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDBreadcrumb {
+                                items: ["项目", "源代码", "组件", "QDBreadcrumb.qml"]
+                                onItemClicked: function(index, text) {
+                                    globalToast.show("返回: " + text, QDToast.Type.Info)
+                                }
+                            }
+                        }
+                        
+                        // 自定义分隔符
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "自定义分隔符:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDBreadcrumb {
+                                items: ["C:", "Users", "Documents", "Projects"]
+                                separator: "\\"
+                                showSeparatorIcon: false
+                                onItemClicked: function(index, text) {
+                                    globalToast.show("打开: " + text, QDToast.Type.Info)
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: EmptyState ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "EmptyState 空状态"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: emptyStateContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: emptyStateContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Row {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingLarge
+                            
+                            // 无数据
+                            Rectangle {
+                                width: 300
+                                height: 350
+                                color: Theme.surface
+                                radius: Theme.radiusMedium
+                                border.width: Theme.borderWidthThin
+                                border.color: Theme.border
+                                
+                                QDEmptyState {
+                                    anchors.fill: parent
+                                    iconSource: FluentIconGlyph.folderGlyph
+                                    iconColor: Theme.textSecondary
+                                    title: "暂无文件"
+                                    description: "这个文件夹是空的，点击下方按钮添加文件"
+                                    actionText: "添加文件"
+                                    onActionClicked: globalToast.show("添加文件", QDToast.Type.Info)
+                                }
+                            }
+                            
+                            // 无搜索结果
+                            Rectangle {
+                                width: 300
+                                height: 350
+                                color: Theme.surface
+                                radius: Theme.radiusMedium
+                                border.width: Theme.borderWidthThin
+                                border.color: Theme.border
+                                
+                                QDEmptyState {
+                                    anchors.fill: parent
+                                    iconSource: FluentIconGlyph.searchGlyph
+                                    iconColor: Theme.textSecondary
+                                    title: "无搜索结果"
+                                    description: "找不到匹配的项目，请尝试其他搜索词"
+                                    actionText: "清除搜索"
+                                    onActionClicked: globalToast.show("清除搜索", QDToast.Type.Info)
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Separator ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Separator 分隔线"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: separatorContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: separatorContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        // 垂直分隔线
+                        Row {
+                            spacing: 0
+                            height: 100
+                            
+                            Rectangle {
+                                width: 150
+                                height: parent.height
+                                color: Theme.surfaceVariant
+                                radius: Theme.radiusSmall
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "左侧内容"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                            }
+                            
+                            QDSeparator {
+                                orientation: QDSeparator.Orientation.Vertical
+                                height: parent.height
+                            }
+                            
+                            Rectangle {
+                                width: 150
+                                height: parent.height
+                                color: Theme.surfaceVariant
+                                radius: Theme.radiusSmall
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "中间内容"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                            }
+                            
+                            QDSeparator {
+                                orientation: QDSeparator.Orientation.Vertical
+                                height: parent.height
+                            }
+                            
+                            Rectangle {
+                                width: 150
+                                height: parent.height
+                                color: Theme.surfaceVariant
+                                radius: Theme.radiusSmall
+                                
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "右侧内容"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                            }
+                        }
+                        
+                        Text {
+                            text: "水平分隔线（使用 QDDivider）:"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeMedium
+                            color: Theme.text
+                        }
+                        
+                        QDDivider {
+                            Layout.fillWidth: true
+                        }
+                        
+                        Text {
+                            text: "QDSeparator 也支持水平方向"
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.textSecondary
+                        }
+                        
+                        QDSeparator {
+                            Layout.fillWidth: true
+                            orientation: QDSeparator.Orientation.Horizontal
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Table ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Table 表格"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: tableContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: tableContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        QDTable {
+                            Layout.fillWidth: true
+                            height: 300
+                            
+                            columns: [
+                                {title: "姓名", role: "name", width: 120},
+                                {title: "职位", role: "position"},
+                                {title: "部门", role: "department"},
+                                {title: "状态", role: "status", width: 80}
+                            ]
+                            
+                            model: ListModel {
+                                ListElement { name: "张三"; position: "前端工程师"; department: "技术部"; status: "在线" }
+                                ListElement { name: "李四"; position: "后端工程师"; department: "技术部"; status: "离线" }
+                                ListElement { name: "王五"; position: "UI设计师"; department: "设计部"; status: "在线" }
+                                ListElement { name: "赵六"; position: "产品经理"; department: "产品部"; status: "忙碌" }
+                                ListElement { name: "孙七"; position: "测试工程师"; department: "技术部"; status: "在线" }
+                                ListElement { name: "周八"; position: "运维工程师"; department: "技术部"; status: "离线" }
+                                ListElement { name: "吴九"; position: "交互设计师"; department: "设计部"; status: "在线" }
+                                ListElement { name: "郑十"; position: "架构师"; department: "技术部"; status: "忙碌" }
+                            }
+                            
+                            showHeader: true
+                            showBorder: true
+                            alternatingRowColors: true
+                            
+                            onRowClicked: function(row, rowData) {
+                                globalToast.show("选中: " + rowData.name + " - " + rowData.position, QDToast.Type.Info)
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Accordion ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Accordion 折叠面板"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: accordionContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: accordionContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSmall
+                            
+                            QDAccordion {
+                                width: parent.width
+                                title: "基本信息"
+                                iconSource: FluentIconGlyph.infoGlyph
+                                expanded: true
+                                
+                                Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingMedium
+                                    
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingMedium
+                                        
+                                        Text {
+                                            text: "姓名:"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.textSecondary
+                                            width: 80
+                                        }
+                                        
+                                        QDTextField {
+                                            placeholderText: "请输入姓名"
+                                            width: parent.width - 80 - parent.spacing
+                                        }
+                                    }
+                                    
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingMedium
+                                        
+                                        Text {
+                                            text: "邮箱:"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.textSecondary
+                                            width: 80
+                                        }
+                                        
+                                        QDTextField {
+                                            placeholderText: "请输入邮箱"
+                                            width: parent.width - 80 - parent.spacing
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            QDAccordion {
+                                width: parent.width
+                                title: "高级设置"
+                                iconSource: FluentIconGlyph.settingsGlyph
+                                
+                                Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingMedium
+                                    
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingMedium
+                                        
+                                        Text {
+                                            text: "自动保存:"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.text
+                                            width: parent.width - autoSaveSwitch.width - parent.spacing
+                                        }
+                                        
+                                        QDSwitch {
+                                            id: autoSaveSwitch
+                                            checked: true
+                                        }
+                                    }
+                                    
+                                    Row {
+                                        width: parent.width
+                                        spacing: Theme.spacingMedium
+                                        
+                                        Text {
+                                            text: "通知提醒:"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.text
+                                            width: parent.width - notificationSwitch.width - parent.spacing
+                                        }
+                                        
+                                        QDSwitch {
+                                            id: notificationSwitch
+                                            checked: false
+                                        }
+                                    }
+                                    
+                                    QDDivider {
+                                        width: parent.width
+                                    }
+                                    
+                                    Column {
+                                        width: parent.width
+                                        spacing: Theme.spacingSmall
+                                        
+                                        Text {
+                                            text: "音量调节:"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeMedium
+                                            color: Theme.text
+                                        }
+                                        
+                                        QDSlider {
+                                            width: parent.width
+                                            value: 0.7
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            QDAccordion {
+                                width: parent.width
+                                title: "关于"
+                                iconSource: FluentIconGlyph.infoGlyph
+                                
+                                Column {
+                                    width: parent.width
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "QuickDesk v1.0.0"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        font.weight: Font.DemiBold
+                                        color: Theme.text
+                                    }
+                                    
+                                    Text {
+                                        text: "现代化的远程控制应用"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        width: parent.width
+                                    }
+                                    
+                                    Text {
+                                        text: "© 2026 QuickDesk Team"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: ContextMenu ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "ContextMenu 右键菜单"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: contextMenuContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: contextMenuContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 200
+                            color: Theme.surfaceVariant
+                            radius: Theme.radiusMedium
+                            
+                            Column {
+                                anchors.centerIn: parent
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: FluentIconGlyph.touchPointerGlyph
+                                    font.family: "Segoe Fluent Icons"
+                                    font.pixelSize: 48
+                                    color: Theme.primary
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                }
+                                
+                                Text {
+                                    text: "在此区域右键点击"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                Text {
+                                    text: "尝试右键菜单功能"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.textSecondary
+                                }
+                            }
+                            
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.RightButton
+                                onClicked: function(mouse) {
+                                    contextMenu2.x = mouse.x
+                                    contextMenu2.y = mouse.y
+                                    contextMenu2.open()
+                                }
+                            }
+                            
+                            QDContextMenu {
+                                id: contextMenu2
+                                
+                                menuItems: [
+                                    QDMenuItem {
+                                        text: "复制"
+                                        onTriggered: globalToast.show("复制", QDToast.Type.Info)
+                                    },
+                                    QDMenuItem {
+                                        text: "粘贴"
+                                        onTriggered: globalToast.show("粘贴", QDToast.Type.Info)
+                                    },
+                                    QDMenuSeparator {},
+                                    QDMenuItem {
+                                        text: "删除"
+                                        onTriggered: globalToast.show("删除", QDToast.Type.Warning)
+                                    },
+                                    QDMenuSeparator {},
+                                    QDMenuItem {
+                                        text: "属性"
+                                        onTriggered: globalToast.show("属性", QDToast.Type.Info)
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: StatusBar ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "StatusBar 状态栏"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: statusBarContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: statusBarContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingMedium
+                            
+                            Text {
+                                text: "基础状态栏:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDStatusBar {
+                                width: parent.width
+                                message: "就绪"
+                                rightText: "第 1 行，第 1 列"
+                            }
+                            
+                            Text {
+                                text: "带左侧文本:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDStatusBar {
+                                width: parent.width
+                                leftText: "已连接"
+                                message: "正在同步..."
+                                rightText: "10:30 AM"
+                            }
+                            
+                            Text {
+                                text: "自定义内容:"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.text
+                            }
+                            
+                            QDStatusBar {
+                                width: parent.width
+                                leftText: "QuickDesk"
+                                
+                                Row {
+                                    spacing: Theme.spacingMedium
+                                    
+                                    QDIconButton {
+                                        buttonSize: QDIconButton.Size.Small
+                                        iconSource: FluentIconGlyph.wifiGlyph
+                                        buttonStyle: QDIconButton.Style.Transparent
+                                        QDToolTip { text: "网络连接" }
+                                    }
+                                    
+                                    QDSeparator {
+                                        orientation: QDSeparator.Orientation.Vertical
+                                        height: Theme.buttonHeightSmall
+                                    }
+                                    
+                                    QDIconButton {
+                                        buttonSize: QDIconButton.Size.Small
+                                        iconSource: FluentIconGlyph.volumeGlyph
+                                        buttonStyle: QDIconButton.Style.Transparent
+                                        QDToolTip { text: "音量" }
+                                    }
+                                    
+                                    QDSeparator {
+                                        orientation: QDSeparator.Orientation.Vertical
+                                        height: Theme.buttonHeightSmall
+                                    }
+                                    
+                                    QDIconButton {
+                                        buttonSize: QDIconButton.Size.Small
+                                        iconSource: FluentIconGlyph.batteryUnknownGlyph
+                                        buttonStyle: QDIconButton.Style.Transparent
+                                        QDToolTip { text: "电量 85%" }
+                                    }
+                                }
+                                
+                                rightText: "v1.0.0"
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: ToggleButtonGroup ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "ToggleButtonGroup 切换按钮组"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: toggleButtonGroupContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: toggleButtonGroupContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingLarge
+                            
+                            // 基础切换组
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "视图切换:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDToggleButtonGroup {
+                                    options: [
+                                        {icon: FluentIconGlyph.viewGlyph, text: "列表"},
+                                        {icon: FluentIconGlyph.gridViewGlyph, text: "网格"},
+                                        {icon: FluentIconGlyph.detailsGlyph, text: "详情"}
+                                    ]
+                                    onValueChanged: function(value) {
+                                        globalToast.show("切换到: " + value, QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            // 纯文本切换组
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "排序方式:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDToggleButtonGroup {
+                                    options: ["名称", "日期", "大小", "类型"]
+                                    currentIndex: 0
+                                    onValueChanged: function(value) {
+                                        globalToast.show("排序: " + value, QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            // 不同尺寸
+                            Row {
+                                spacing: Theme.spacingLarge
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "小号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDToggleButtonGroup {
+                                        buttonSize: QDToggleButtonGroup.Size.Small
+                                        options: ["选项1", "选项2", "选项3"]
+                                    }
+                                }
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "中号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDToggleButtonGroup {
+                                        buttonSize: QDToggleButtonGroup.Size.Medium
+                                        options: ["选项1", "选项2", "选项3"]
+                                    }
+                                }
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "大号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDToggleButtonGroup {
+                                        buttonSize: QDToggleButtonGroup.Size.Large
+                                        options: ["选项1", "选项2", "选项3"]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Rating ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Rating 评分组件"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: ratingContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: ratingContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingLarge
+                            
+                            // 基础评分
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Row {
+                                    spacing: Theme.spacingMedium
+                                    
+                                    Text {
+                                        text: "评分:"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.text
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    
+                                    QDRating {
+                                        id: rating1
+                                        value: 3.5
+                                        onRatingChanged: function(newValue) {
+                                            ratingText.text = newValue.toFixed(1) + " 分"
+                                        }
+                                    }
+                                    
+                                    Text {
+                                        id: ratingText
+                                        text: "3.5 分"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.textSecondary
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+                            }
+                            
+                            // 只读评分
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "商品评价 (只读):"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                Row {
+                                    spacing: Theme.spacingMedium
+                                    
+                                    QDRating {
+                                        value: 4.5
+                                        readOnly: true
+                                    }
+                                    
+                                    Text {
+                                        text: "4.5 分 (128 评价)"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+                            }
+                            
+                            // 不同尺寸
+                            Row {
+                                spacing: Theme.spacingLarge
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "小号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDRating {
+                                        ratingSize: QDRating.Size.Small
+                                        value: 4
+                                    }
+                                }
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "中号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDRating {
+                                        ratingSize: QDRating.Size.Medium
+                                        value: 4
+                                    }
+                                }
+                                
+                                Column {
+                                    spacing: Theme.spacingSmall
+                                    
+                                    Text {
+                                        text: "大号"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                    }
+                                    
+                                    QDRating {
+                                        ratingSize: QDRating.Size.Large
+                                        value: 4
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: Pagination ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "Pagination 分页组件"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: paginationContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: paginationContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingLarge
+                            
+                            // 基础分页
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "基础分页:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDPagination {
+                                    total: 100
+                                    current: 1
+                                    pageSize: 10
+                                    showSizeChanger: false
+                                    
+                                    onPageChanged: function(page) {
+                                        globalToast.show("切换到第 " + page + " 页", QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            // 完整功能
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "完整功能 (可切换每页条数):"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDPagination {
+                                    total: 500
+                                    current: 5
+                                    pageSize: 20
+                                    showSizeChanger: true
+                                    pageSizeOptions: [10, 20, 50, 100]
+                                    
+                                    onPageChanged: function(page) {
+                                        globalToast.show("第 " + page + " 页", QDToast.Type.Info)
+                                    }
+                                    
+                                    onPageSizeChanged: function(size) {
+                                        globalToast.show("每页 " + size + " 条", QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                }
+                
+                // ============ Section: DateTimePicker ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "DateTimePicker 日期时间选择器"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: dateTimePickerContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: dateTimePickerContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            QDDivider {
+                                Layout.fillWidth: true
+                            }
+                        
+                        Column {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingLarge
+                            
+                            // 日期选择器
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "日期选择器:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDDateTimePicker {
+                                    width: 280
+                                    showTime: false
+                                    
+                                    onDateChanged: function(newDate) {
+                                        globalToast.show("选择日期: " + Qt.formatDate(newDate, "yyyy-MM-dd"), QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            // 日期时间选择器
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "日期时间选择器:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDDateTimePicker {
+                                    width: 280
+                                    showTime: true
+                                    
+                                    onDateChanged: function(newDate) {
+                                        globalToast.show("选择: " + Qt.formatDateTime(newDate, "yyyy-MM-dd HH:mm"), QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 }
                 
                 // Footer

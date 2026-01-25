@@ -9,6 +9,7 @@ Controls.Popup {
     // ============ Custom Properties ============
     
     property list<QtObject> menuItems
+    default property list<QtObject> contentData  // 改为 QtObject 以接受 Component
     
     // ============ Size & Style ============
     
@@ -46,8 +47,26 @@ Controls.Popup {
         id: menuContent
         spacing: Theme.spacingXSmall
         
+        Component.onCompleted: {
+            // 如果 menuItems 为空，但有 contentData，将它们添加到 menuItems
+            if (control.menuItems.length === 0 && control.contentData.length > 0) {
+                var items = []
+                for (var i = 0; i < control.contentData.length; i++) {
+                    var item = control.contentData[i]
+                    var itemType = item.toString()
+                    
+                    // 排除 Component 类型
+                    if (item && itemType.indexOf("Component") === -1) {
+                        items.push(item)
+                    }
+                }
+                control.menuItems = items
+            }
+        }
+        
+        // 如果使用 menuItems 属性（数组方式）
         Repeater {
-            model: control.contentData
+            model: control.menuItems.length > 0 ? control.menuItems : []
             delegate: Item {
                 width: control.width - control.padding * 2
                 height: {
@@ -142,6 +161,8 @@ Controls.Popup {
                 }
             }
         }
+        
+        // 声明式子元素会自动添加到这里（通过 default property）
     }
     
     // ============ Animation ============

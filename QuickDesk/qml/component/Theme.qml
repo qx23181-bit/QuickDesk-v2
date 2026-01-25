@@ -233,6 +233,7 @@ QtObject {
     readonly property color surface: _currentThemeConfig.surface
     readonly property color surfaceVariant: _currentThemeConfig.surfaceVariant
     readonly property color surfaceHover: _currentThemeConfig.surfaceHover
+    readonly property color surfacePressed: Qt.darker(_currentThemeConfig.surfaceHover, 1.1)
     
     readonly property color primary: _currentThemeConfig.primary
     readonly property color primaryHover: _currentThemeConfig.primaryHover

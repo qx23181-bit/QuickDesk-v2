@@ -91,6 +91,24 @@ qt_add_qml_module(QuickDesk
         qml/component/QDMenuItem.qml
         qml/component/QDMenuSeparator.qml
         qml/component/QDShadow.qml
+        qml/component/QDTabBar.qml
+        qml/component/QDTabButton.qml
+        qml/component/QDIconButton.qml
+        qml/component/QDDrawer.qml
+        qml/component/QDScrollBar.qml
+        qml/component/QDListView.qml
+        qml/component/QDListItem.qml
+        qml/component/QDBreadcrumb.qml
+        qml/component/QDEmptyState.qml
+        qml/component/QDSeparator.qml
+        qml/component/QDTable.qml
+        qml/component/QDAccordion.qml
+        qml/component/QDContextMenu.qml
+        qml/component/QDStatusBar.qml
+        qml/component/QDToggleButtonGroup.qml
+        qml/component/QDRating.qml
+        qml/component/QDPagination.qml
+        qml/component/QDDateTimePicker.qml
     RESOURCES
         res/font/SegoeFluentIcons.ttf
         qml/component/qmldir
