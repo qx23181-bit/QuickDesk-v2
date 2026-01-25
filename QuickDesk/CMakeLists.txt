@@ -109,6 +109,9 @@ qt_add_qml_module(QuickDesk
         qml/component/QDRating.qml
         qml/component/QDPagination.qml
         qml/component/QDDateTimePicker.qml
+        qml/component/QDTextArea.qml
+        qml/component/QDSearchBox.qml
+        qml/component/QDNavigationView.qml
     RESOURCES
         res/font/SegoeFluentIcons.ttf
         qml/component/qmldir

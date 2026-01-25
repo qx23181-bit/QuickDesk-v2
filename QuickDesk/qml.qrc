@@ -42,6 +42,9 @@
         <file>qml/component/QDRating.qml</file>
         <file>qml/component/QDPagination.qml</file>
         <file>qml/component/QDDateTimePicker.qml</file>
+        <file>qml/component/QDTextArea.qml</file>
+        <file>qml/component/QDSearchBox.qml</file>
+        <file>qml/component/QDNavigationView.qml</file>
         <file>qml/component/qmldir</file>
         <file>qml/Example.qml</file>
         <file>res/font/SegoeFluentIcons.ttf</file>

@@ -3333,6 +3333,330 @@ Window {
                         }
                     }
                 }
+                
+                // ============ Section: TextArea ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "TextArea 多行文本输入框"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: textAreaContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: textAreaContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            // 基础 TextArea
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "基础多行输入:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDTextArea {
+                                    Layout.fillWidth: true
+                                    height: 120
+                                    placeholderText: "请输入多行文本..."
+                                }
+                            }
+                            
+                            // 带错误状态
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "错误状态:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDTextArea {
+                                    Layout.fillWidth: true
+                                    height: 100
+                                    hasError: true
+                                    placeholderText: "这里有错误..."
+                                    text: "输入内容不符合要求"
+                                }
+                            }
+                            
+                            // 禁用状态
+                            Column {
+                                width: parent.width
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "禁用状态:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDTextArea {
+                                    Layout.fillWidth: true
+                                    height: 80
+                                    enabled: false
+                                    text: "这是只读的文本内容"
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // ============ Section: SearchBox ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "SearchBox 搜索框"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: searchBoxContent.implicitHeight + Theme.spacingXLarge * 2
+                        elevation: 1
+                        
+                        ColumnLayout {
+                            id: searchBoxContent
+                            anchors.fill: parent
+                            anchors.margins: Theme.spacingXLarge
+                            spacing: Theme.spacingLarge
+                            
+                            // 基础搜索框
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "基础搜索框:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDSearchBox {
+                                    width: 400
+                                    placeholderText: "搜索..."
+                                    
+                                    onSearchRequested: function(query) {
+                                        globalToast.show("搜索: " + query, QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            // 不同尺寸
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "不同宽度:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                Row {
+                                    spacing: Theme.spacingMedium
+                                    
+                                    QDSearchBox {
+                                        width: 200
+                                        placeholderText: "小号..."
+                                        onSearchRequested: function(query) {
+                                            globalToast.show("搜索: " + query, QDToast.Type.Info)
+                                        }
+                                    }
+                                    
+                                    QDSearchBox {
+                                        width: 300
+                                        placeholderText: "中号..."
+                                        onSearchRequested: function(query) {
+                                            globalToast.show("搜索: " + query, QDToast.Type.Info)
+                                        }
+                                    }
+                                    
+                                    QDSearchBox {
+                                        width: 500
+                                        placeholderText: "大号..."
+                                        onSearchRequested: function(query) {
+                                            globalToast.show("搜索: " + query, QDToast.Type.Info)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 带清除功能
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSmall
+                                
+                                Text {
+                                    text: "清除按钮（输入内容后显示）:"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.text
+                                }
+                                
+                                QDSearchBox {
+                                    width: 400
+                                    placeholderText: "输入文本查看清除按钮..."
+                                    text: "示例文本"
+                                    
+                                    onCleared: {
+                                        globalToast.show("已清除搜索", QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // ============ Section: NavigationView ============
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLarge
+                    
+                    Text {
+                        text: "NavigationView 导航视图"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeHeading
+                        font.weight: Font.Bold
+                        color: Theme.text
+                    }
+                    
+                    QDCard {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 500
+                        elevation: 1
+                        
+                        QDNavigationView {
+                            id: navView
+                            anchors.fill: parent
+                            
+                            menuItems: [
+                                { icon: FluentIconGlyph.homeGlyph, text: "首页" },
+                                { icon: FluentIconGlyph.documentGlyph, text: "文档" },
+                                { icon: FluentIconGlyph.favoriteStarGlyph, text: "收藏" },
+                                { icon: FluentIconGlyph.mailGlyph, text: "邮件" },
+                                { icon: FluentIconGlyph.calendarGlyph, text: "日历" },
+                                { icon: FluentIconGlyph.contactGlyph, text: "联系人" },
+                                { icon: FluentIconGlyph.settingsGlyph, text: "设置" }
+                            ]
+                            
+                            header: RowLayout {
+                                width: parent.width
+                                height: 48
+                                spacing: Theme.spacingMedium
+                                
+                                Rectangle {
+                                    Layout.leftMargin: Theme.spacingMedium
+                                    width: 32
+                                    height: 32
+                                    color: Theme.primary
+                                    radius: 16
+                                    
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Q"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 18
+                                        font.bold: true
+                                        color: "white"
+                                    }
+                                }
+                                
+                                Text {
+                                    visible: navView.isExpanded
+                                    text: "QuickDesk"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    font.bold: true
+                                    color: Theme.text
+                                }
+                            }
+                            
+                            footer: Rectangle {
+                                width: parent.width
+                                height: 48
+                                color: "transparent"
+                                
+                                QDButton {
+                                    anchors.centerIn: parent
+                                    text: navView.isExpanded ? "账户设置" : ""
+                                    iconText: FluentIconGlyph.contactGlyph
+                                    buttonType: QDButton.Type.Ghost
+                                    width: navView.isExpanded ? parent.width - Theme.spacingMedium * 2 : 40
+                                    
+                                    onClicked: {
+                                        globalToast.show("打开账户设置", QDToast.Type.Info)
+                                    }
+                                }
+                            }
+                            
+                            content: Rectangle {
+                                color: Theme.background
+                                
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.spacingLarge
+                                    spacing: Theme.spacingMedium
+                                    
+                                    Text {
+                                        text: "内容区域"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeXLarge
+                                        font.bold: true
+                                        color: Theme.text
+                                    }
+                                    
+                                    Text {
+                                        id: navContentText
+                                        text: "选择左侧菜单项查看详情"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeMedium
+                                        color: Theme.textSecondary
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                    
+                                    Item { Layout.fillHeight: true }
+                                }
+                            }
+                            
+                            onItemClicked: function(index, item) {
+                                navContentText.text = "当前选中: " + item.text + " (索引: " + index + ")"
+                                globalToast.show("点击了 " + item.text, QDToast.Type.Info)
+                            }
+                            }
+                        }
+                    }
+                }
                 }
                 
                 // Footer
@@ -3351,5 +3675,4 @@ Window {
             }
         }
     }
-}
 }

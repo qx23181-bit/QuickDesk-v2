@@ -43,3 +43,6 @@ QDToggleButtonGroup 1.0 QDToggleButtonGroup.qml
 QDRating 1.0 QDRating.qml
 QDPagination 1.0 QDPagination.qml
 QDDateTimePicker 1.0 QDDateTimePicker.qml
+QDTextArea 1.0 QDTextArea.qml
+QDSearchBox 1.0 QDSearchBox.qml
+QDNavigationView 1.0 QDNavigationView.qml
