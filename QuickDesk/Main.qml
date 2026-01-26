@@ -13,7 +13,7 @@ ApplicationWindow {
     visible: true
     title: "QuickDesk - 远程桌面"
 
-    Example {}
+    //Example {}
 
     // Main controller
     MainController {

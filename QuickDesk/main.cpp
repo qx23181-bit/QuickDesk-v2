@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
     // infra
     infra::ApplicationContext::instance().init();
-    infra::Log::instance().init(infra::ApplicationContext::instance().logPath());
+    infra::Log::instance().init(infra::ApplicationContext::instance().applicationDirPath());
     LOG_INFO("start app {}, log level:{} ********", infra::ApplicationContext::instance().applicationName().toStdString(), SPDLOG_ACTIVE_LEVEL);
     infra::ApplicationContext::instance().setApplicationVersion(APP_VERSION_STR);
     LOG_INFO("current version:{}", infra::ApplicationContext::instance().applicationVersion().toStdString());
