@@ -33,11 +33,13 @@ set(CONTROLLER_HEADERS
 set(COMPONENT_SOURCES
     src/component/VideoFrameProvider.cpp
     src/component/KeycodeMapper.cpp
+    src/component/CursorImageProvider.cpp
 )
 
 set(COMPONENT_HEADERS
     src/component/VideoFrameProvider.h
     src/component/KeycodeMapper.h
+    src/component/CursorImageProvider.h
 )
 
 set(CORE_SOURCES

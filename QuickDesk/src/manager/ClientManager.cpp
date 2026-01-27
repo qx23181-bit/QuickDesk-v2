@@ -264,6 +264,8 @@ void ClientManager::onMessageReceived(const QJsonObject& message)
         handleDisconnectFromHostResponse(message);
     } else if (type == "disconnectAllResponse") {
         handleDisconnectAllResponse(message);
+    } else if (type == "cursorShapeChanged") {
+        handleCursorShapeChanged(message);
     } else {
         LOG_WARN("Unknown message type from client: {}", type.toStdString());
     }
@@ -535,6 +537,24 @@ void ClientManager::handleDisconnectAllResponse(const QJsonObject& message)
 {
     Q_UNUSED(message);
     LOG_INFO("Disconnect all response received");
+}
+
+void ClientManager::handleCursorShapeChanged(const QJsonObject& message)
+{
+    QString connectionId = message["connectionId"].toString();
+    int width = message["width"].toInt();
+    int height = message["height"].toInt();
+    int hotspotX = message["hotspotX"].toInt();
+    int hotspotY = message["hotspotY"].toInt();
+    QString base64Data = message["data"].toString();
+    
+    // Decode base64 data
+    QByteArray data = QByteArray::fromBase64(base64Data.toLatin1());
+    
+    LOG_DEBUG("Cursor shape changed for connection {}: {}x{} hotspot({}, {}) data size: {}",
+              connectionId.toStdString(), width, height, hotspotX, hotspotY, data.size());
+    
+    emit cursorShapeChanged(connectionId, width, height, hotspotX, hotspotY, data);
 }
 
 void ClientManager::sendMouseEvent(const QString& connectionId, const QString& eventType,

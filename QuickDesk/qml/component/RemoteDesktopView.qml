@@ -91,6 +91,28 @@ Rectangle {
         return { x: remoteX, y: remoteY };
     }
     
+    // Remote cursor display
+    Image {
+        id: remoteCursor
+        visible: root.hasVideo && frameProvider.hasCursor && mouseArea.containsMouse
+        source: frameProvider.hasCursor ? "image://cursor/" + root.connectionId + "/" + cursorVersion : ""
+        
+        // Track cursor version for image refresh
+        property int cursorVersion: 0
+        
+        // Position follows mouse, offset by hotspot
+        x: mouseArea.mouseX - frameProvider.cursorHotspot.x
+        y: mouseArea.mouseY - frameProvider.cursorHotspot.y
+        
+        // Update when cursor changes
+        Connections {
+            target: frameProvider
+            function onCursorChanged() {
+                remoteCursor.cursorVersion++
+            }
+        }
+    }
+    
     // Mouse event capture
     MouseArea {
         id: mouseArea
@@ -98,7 +120,7 @@ Rectangle {
         enabled: root.inputEnabled && root.hasVideo
         hoverEnabled: true
         acceptedButtons: Qt.AllButtons
-        cursorShape: root.hasVideo ? Qt.BlankCursor : Qt.ArrowCursor
+        cursorShape: (root.hasVideo && frameProvider.hasCursor) ? Qt.BlankCursor : Qt.ArrowCursor
         
         property point lastPosition: Qt.point(0, 0)
         
@@ -195,6 +217,12 @@ Rectangle {
         function onVideoFrameReady(connId, frameIndex) {
             if (connId === root.connectionId) {
                 frameProvider.onVideoFrameReady(frameIndex)
+            }
+        }
+        
+        function onCursorShapeChanged(connId, width, height, hotspotX, hotspotY, data) {
+            if (connId === root.connectionId) {
+                frameProvider.onCursorShapeChanged(width, height, hotspotX, hotspotY, data)
             }
         }
     }

@@ -21,6 +21,7 @@
 #include "manager/SharedMemoryManager.h"
 #include "component/VideoFrameProvider.h"
 #include "component/KeycodeMapper.h"
+#include "component/CursorImageProvider.h"
 
 int main(int argc, char *argv[])
 {
@@ -66,6 +67,10 @@ int main(int argc, char *argv[])
         });
 
     QQmlApplicationEngine engine;
+    
+    // Register cursor image provider
+    engine.addImageProvider("cursor", new quickdesk::CursorImageProvider());
+    
     QFontDatabase::addApplicationFont(":/res/font/SegoeFluentIcons.ttf");
 
     // Handle QML creation failures

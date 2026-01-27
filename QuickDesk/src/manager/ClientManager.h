@@ -99,6 +99,10 @@ signals:
     void errorOccurred(const QString& connectionId, 
                        const QString& code, 
                        const QString& message);
+    void cursorShapeChanged(const QString& connectionId, 
+                            int width, int height,
+                            int hotspotX, int hotspotY,
+                            const QByteArray& data);
 
 private slots:
     void onMessageReceived(const QJsonObject& message);
@@ -125,6 +129,7 @@ private:
     void handleHostConnectionFailed(const QJsonObject& message);
     void handleDisconnectFromHostResponse(const QJsonObject& message);
     void handleDisconnectAllResponse(const QJsonObject& message);
+    void handleCursorShapeChanged(const QJsonObject& message);
     
     void sendMouseEvent(const QString& connectionId, const QString& eventType,
                         int x, int y, int button, int wheelDelta);

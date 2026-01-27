@@ -1,6 +1,7 @@
 // Copyright 2026 QuickDesk Authors
 
 #include "VideoFrameProvider.h"
+#include "CursorImageProvider.h"
 #include "infra/log/log.h"
 
 #include <QDateTime>
@@ -137,6 +138,47 @@ void VideoFrameProvider::updateFrameRate()
     }
     
     m_lastFrameTime = now;
+}
+
+void VideoFrameProvider::onCursorShapeChanged(int width, int height,
+                                              int hotspotX, int hotspotY,
+                                              const QByteArray& data)
+{
+    if (width <= 0 || height <= 0) {
+        // Clear cursor
+        m_cursorImage = QImage();
+        m_cursorHotspot = QPoint(0, 0);
+        emit cursorChanged();
+        return;
+    }
+    
+    // Expected data size: width * height * 4 (BGRA)
+    int expectedSize = width * height * 4;
+    if (data.size() < expectedSize) {
+        LOG_WARN("Cursor data size mismatch: expected {} got {}", 
+                 expectedSize, data.size());
+        return;
+    }
+    
+    // Create QImage from BGRA data
+    // Note: QImage::Format_ARGB32 on little-endian systems is actually BGRA in memory
+    m_cursorImage = QImage(reinterpret_cast<const uchar*>(data.constData()),
+                           width, height, width * 4,
+                           QImage::Format_ARGB32);
+    // Make a deep copy since the original data buffer may be temporary
+    m_cursorImage = m_cursorImage.copy();
+    
+    m_cursorHotspot = QPoint(hotspotX, hotspotY);
+    
+    LOG_DEBUG("Cursor updated: {}x{} hotspot({}, {})", 
+              width, height, hotspotX, hotspotY);
+    
+    // Update the image provider so QML can access the cursor
+    if (CursorImageProvider::instance()) {
+        CursorImageProvider::instance()->setCursor(m_connectionId, m_cursorImage, m_cursorHotspot);
+    }
+    
+    emit cursorChanged();
 }
 
 } // namespace quickdesk
