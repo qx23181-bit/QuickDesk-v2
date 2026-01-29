@@ -48,6 +48,25 @@ private:
     ServerStatus() = delete;
 };
 
+/**
+ * @brief WebRTC P2P connection status enum
+ */
+class RtcStatus : public QObject {
+    Q_OBJECT
+    
+public:
+    enum Status {
+        Disconnected,   // 未连接
+        Connecting,     // 连接中
+        Connected,      // 已连接
+        Failed          // 连接失败
+    };
+    Q_ENUM(Status)
+    
+private:
+    RtcStatus() = delete;
+};
+
 } // namespace quickdesk
 
 #endif // QUICKDESK_COMMON_PROCESSSTATUS_H

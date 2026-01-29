@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "SharedMemoryManager.h"
+#include "common/ProcessStatus.h"
 
 namespace quickdesk {
 
@@ -24,7 +25,7 @@ struct ConnectionInfo {
     QString connectionId;
     QString deviceId;
     QString deviceName;
-    QString state;  // Connection state: "connecting", "connected", "disconnected", "failed"
+    RtcStatus::Status rtcState = RtcStatus::Disconnected;  // WebRTC P2P connection state
     QString connectedAt;
     int width = 0;
     int height = 0;
@@ -84,7 +85,7 @@ public:
     QList<ConnectionInfo> connections() const;
     ConnectionInfo getConnection(const QString& connectionId) const;
     QStringList connectionIds() const;
-    Q_INVOKABLE QString getConnectionState(const QString& connectionId) const;
+    Q_INVOKABLE RtcStatus::Status getConnectionRtcState(const QString& connectionId) const;
     
     // Get signaling state for a specific connection
     Q_INVOKABLE QString getSignalingState(const QString& connectionId) const;

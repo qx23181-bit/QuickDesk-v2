@@ -1,4 +1,5 @@
 // Copyright 2026 QuickDesk Authors
+// Client Manager Implementation
 
 #include "ClientManager.h"
 #include "NativeMessaging.h"
@@ -59,7 +60,7 @@ QString ClientManager::connectToHost(const QString& deviceId,
     ConnectionInfo conn;
     conn.connectionId = connectionId;
     conn.deviceId = deviceId;
-    conn.state = "connecting";
+    conn.rtcState = RtcStatus::Connecting;
     m_connections[connectionId] = conn;
 
     // Send connect message
@@ -263,18 +264,12 @@ QStringList ClientManager::connectionIds() const
     return m_connections.keys();
 }
 
-QString ClientManager::getConnectionState(const QString& connectionId) const
+RtcStatus::Status ClientManager::getConnectionRtcState(const QString& connectionId) const
 {
     if (m_connections.contains(connectionId)) {
-        QString state = m_connections[connectionId].state;
-        // Translate state to Chinese
-        if (state == "connecting") return "连接中...";
-        if (state == "connected") return "已连接";
-        if (state == "disconnected") return "已断开";
-        if (state == "failed") return "连接失败";
-        return state;
+        return m_connections[connectionId].rtcState;
     }
-    return "";
+    return RtcStatus::Disconnected;
 }
 
 QString ClientManager::getSignalingState(const QString& connectionId) const
@@ -413,7 +408,7 @@ void ClientManager::handleConnectToHostResponse(const QJsonObject& message)
     if (!m_connections.contains(connectionId)) {
         ConnectionInfo conn;
         conn.connectionId = connectionId;
-        conn.state = "connecting";
+        conn.rtcState = RtcStatus::Connecting;
         m_connections[connectionId] = conn;
 
         emit connectionCountChanged();
@@ -429,11 +424,20 @@ void ClientManager::handleConnectToHostResponse(const QJsonObject& message)
 void ClientManager::handleConnectionStateChanged(const QJsonObject& message)
 {
     QString connectionId = message["connectionId"].toString();
-    QString state = message["state"].toString();
+    QString stateStr = message["state"].toString();
     QJsonObject hostInfo = message["hostInfo"].toObject();
 
     if (m_connections.contains(connectionId)) {
-        m_connections[connectionId].state = state;
+        // Convert string to enum
+        if (stateStr == "connecting") {
+            m_connections[connectionId].rtcState = RtcStatus::Connecting;
+        } else if (stateStr == "connected") {
+            m_connections[connectionId].rtcState = RtcStatus::Connected;
+        } else if (stateStr == "disconnected") {
+            m_connections[connectionId].rtcState = RtcStatus::Disconnected;
+        } else if (stateStr == "failed") {
+            m_connections[connectionId].rtcState = RtcStatus::Failed;
+        }
         
         if (hostInfo.contains("resolution")) {
             QString resolution = hostInfo["resolution"].toString();
@@ -448,8 +452,8 @@ void ClientManager::handleConnectionStateChanged(const QJsonObject& message)
         }
     }
 
-    LOG_INFO("Connection {} state changed to: {}", connectionId.toStdString(), state.toStdString());
-    emit connectionStateChanged(connectionId, state, hostInfo);
+    LOG_INFO("Connection {} RTC state changed to: {}", connectionId.toStdString(), stateStr.toStdString());
+    emit connectionStateChanged(connectionId, stateStr, hostInfo);
     emit connectionListChanged();
 }
 
@@ -464,8 +468,21 @@ void ClientManager::handleConnectionListChanged(const QJsonObject& message)
         conn.connectionId = obj["connectionId"].toString();
         conn.deviceId = obj["deviceId"].toString();
         conn.deviceName = obj["deviceName"].toString();
-        conn.state = obj["state"].toString();
         conn.connectedAt = obj["connectedAt"].toString();
+        
+        // Convert string state to enum
+        QString stateStr = obj["state"].toString();
+        if (stateStr == "connecting") {
+            conn.rtcState = RtcStatus::Connecting;
+        } else if (stateStr == "connected") {
+            conn.rtcState = RtcStatus::Connected;
+        } else if (stateStr == "disconnected") {
+            conn.rtcState = RtcStatus::Disconnected;
+        } else if (stateStr == "failed") {
+            conn.rtcState = RtcStatus::Failed;
+        } else {
+            conn.rtcState = RtcStatus::Disconnected;
+        }
         
         m_connections[conn.connectionId] = conn;
     }
@@ -531,7 +548,7 @@ void ClientManager::handleConnectionFailed(const QJsonObject& message)
     
     // Update connection state
     if (m_connections.contains(connectionId)) {
-        m_connections[connectionId].state = "failed";
+        m_connections[connectionId].rtcState = RtcStatus::Failed;
         emit connectionStateChanged(connectionId, "failed", QJsonObject());
     }
     
@@ -561,7 +578,7 @@ void ClientManager::handleHostConnected(const QJsonObject& message)
     LOG_INFO("Host connected: {}", connectionId.toStdString());
     
     if (m_connections.contains(connectionId)) {
-        m_connections[connectionId].state = "connected";
+        m_connections[connectionId].rtcState = RtcStatus::Connected;
         emit connectionStateChanged(connectionId, "connected", QJsonObject());
     }
     emit connectionListChanged();
@@ -574,7 +591,7 @@ void ClientManager::handleHostDisconnected(const QJsonObject& message)
     LOG_INFO("Host disconnected: {}", connectionId.toStdString());
     
     if (m_connections.contains(connectionId)) {
-        m_connections[connectionId].state = "disconnected";
+        m_connections[connectionId].rtcState = RtcStatus::Disconnected;
         emit connectionStateChanged(connectionId, "disconnected", QJsonObject());
     }
     
@@ -606,18 +623,18 @@ void ClientManager::handleHostConnectionFailed(const QJsonObject& message)
     
     // Update connection state
     if (m_connections.contains(connectionId)) {
-        m_connections[connectionId].state = "failed";
+        m_connections[connectionId].rtcState = RtcStatus::Failed;
         emit connectionStateChanged(connectionId, "failed", QJsonObject());
     }
     
     // Map protocol::ErrorCode to user-friendly message
     QString errorMsg;
     switch (errorCode) {
-        case 1: errorMsg = "认证失败"; break;
-        case 2: errorMsg = "通道错误"; break;
-        case 3: errorMsg = "连接超时"; break;
-        case 4: errorMsg = "网络错误"; break;
-        default: errorMsg = QString("连接失败 (错误码: %1)").arg(errorCode); break;
+        case 1: errorMsg = tr("Authentication failed"); break;
+        case 2: errorMsg = tr("Channel error"); break;
+        case 3: errorMsg = tr("Connection timeout"); break;
+        case 4: errorMsg = tr("Network error"); break;
+        default: errorMsg = tr("Connection failed (error code: %1)").arg(errorCode); break;
     }
     
     emit errorOccurred(connectionId, "CONNECTION_FAILED", errorMsg);

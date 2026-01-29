@@ -53,6 +53,7 @@ ApplicationWindow {
     Component.onDestruction: {
         console.log("MainWindow.qml unloading, shutting down...")
         mainController.shutdown()
+        console.log("MainWindow.qml unload finish")
     }
     
     // Function to create or show remote window

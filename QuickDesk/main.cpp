@@ -70,6 +70,8 @@ int main(int argc, char *argv[])
         "ProcessStatus is an enum container");
     qmlRegisterUncreatableType<quickdesk::ServerStatus>("QuickDesk", 1, 0, "ServerStatus",
         "ServerStatus is an enum container");
+    qmlRegisterUncreatableType<quickdesk::RtcStatus>("QuickDesk", 1, 0, "RtcStatus",
+        "RtcStatus is an enum container");
     
     // Register KeycodeMapper as singleton
     qmlRegisterSingletonType<quickdesk::KeycodeMapper>("QuickDesk", 1, 0, "KeycodeMapper",

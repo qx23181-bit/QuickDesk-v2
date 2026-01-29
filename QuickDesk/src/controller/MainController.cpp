@@ -246,7 +246,7 @@ void MainController::copyDeviceInfo()
         return;
     }
     
-    QString info = QString("设备ID: %1\n访问码: %2").arg(deviceId, accessCode);
+    QString info = tr("Device ID: %1\nAccess Code: %2").arg(deviceId, accessCode);
     copyToClipboard(info);
 }
 
@@ -308,21 +308,21 @@ QString MainController::signalingStatusText() const
     QString error = m_hostManager->signalingError();
     
     if (state == "connected") {
-        return "已连接";
+        return tr("Connected");
     } else if (state == "connecting") {
-        return "正在连接...";
+        return tr("Connecting...");
     } else if (state == "disconnected") {
-        return "未连接";
+        return tr("Disconnected");
     } else if (state == "failed") {
-        QString msg = "连接失败";
+        QString msg = tr("Connection failed");
         if (!error.isEmpty()) {
             msg += QString(": %1").arg(error);
         }
         return msg;
     } else if (state == "reconnecting") {
-        QString msg = QString("重连中(第%1次)").arg(retryCount);
+        QString msg = tr("Reconnecting (attempt %1)").arg(retryCount);
         if (nextRetry > 0) {
-            msg += QString(", %1秒后重试").arg(nextRetry);
+            msg += tr(", retry in %1s").arg(nextRetry);
         }
         return msg;
     }
@@ -352,11 +352,11 @@ ServerStatus::Status MainController::clientServerStatus() const
 QString MainController::nextAccessCodeRefreshTime() const
 {
     if (m_accessCodeRefreshIntervalMinutes <= 0) {
-        return "永不";
+        return tr("Never");
     }
     
     if (!m_nextRefreshTime.isValid()) {
-        return "永不";
+        return tr("Never");
     }
     
     // Format: "01-29 09:11"
