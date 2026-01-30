@@ -1,0 +1,34 @@
+{
+  "description": "ICE Configuration Example for QuickDesk (Chrome Remoting Standard Format)",
+  "iceConfig": {
+    "lifetimeDuration": "43200.000s",
+    "iceServers": [
+      {
+        "urls": ["turn:112.180.196.189:3478"],
+        "username": "aabbd",
+        "credential": "dafafa",
+        "maxRateKbps": 8000.0
+      },
+      {
+        "urls": ["stun:stun.l.google.com:19302"]
+      },
+      {
+        "urls": [
+          "turn:another-turn.example.com:3478",
+          "turn:another-turn.example.com:3478?transport=tcp"
+        ],
+        "username": "user2",
+        "credential": "password2"
+      }
+    ]
+  },
+  "notes": [
+    "This uses the standard Chrome Remoting ICE config format",
+    "'lifetimeDuration' is optional (format: '43200.000s' for 12 hours)",
+    "'maxRateKbps' is optional bitrate limit for TURN connections",
+    "STUN servers only need 'urls' field",
+    "TURN servers require 'urls', 'username', and 'credential' fields",
+    "URLs can include protocol (turn/turns/stun), host, port, and optional transport parameter",
+    "Multiple URLs can be specified in the 'urls' array for the same server credentials"
+  ]
+}
