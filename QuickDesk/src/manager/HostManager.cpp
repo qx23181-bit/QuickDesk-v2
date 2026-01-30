@@ -10,6 +10,20 @@ namespace quickdesk {
 HostManager::HostManager(QObject* parent)
     : QObject(parent)
 {
+    // 硬编码默认 TURN 服务器配置（用于测试）
+    QJsonArray iceServers;
+    
+    // 添加默认 TURN 服务器
+    QJsonObject turnServer;
+    turnServer["urls"] = QJsonArray{"turn:115.190.196.189:3478"};
+    turnServer["username"] = "qfturn";
+    turnServer["credential"] = "iunngalgag";
+    //turnServer["maxRateKbps"] = 8000.0;  // 可选：带宽限制 8 Mbps
+    iceServers.append(turnServer);    
+    
+    // 设置默认配置
+    m_iceServers = iceServers;
+    LOG_INFO("Initialized with default ICE servers: {} server(s)", m_iceServers.size());
 }
 
 void HostManager::setMessaging(NativeMessaging* messaging)
@@ -66,6 +80,18 @@ void HostManager::connectToServer(const QString& serverUrl, const QString& saved
         LOG_INFO("Sending connect message with saved access code: {}", savedAccessCode.toStdString());
     } else {
         LOG_INFO("Sending connect message to host, serverUrl: {}", serverUrl.toStdString());
+    }
+    
+    // Include ICE configuration if provided (using standard Chrome Remoting format)
+    if (!m_iceServers.isEmpty()) {
+        QJsonObject iceConfig;
+        iceConfig["iceServers"] = m_iceServers;
+        // Optional: Set lifetime duration (12 hours = 43200 seconds)
+        //iceConfig["lifetimeDuration"] = "43200.000s";
+        message["iceConfig"] = iceConfig;
+        LOG_INFO("Sending ICE config with {} server(s)", m_iceServers.size());
+    } else {
+        LOG_INFO("No custom ICE servers configured, host will use defaults");
     }
 
     m_messaging->sendMessage(message);
@@ -469,6 +495,17 @@ void HostManager::handleRefreshAccessCodeResponse(const QJsonObject& message)
         LOG_WARN("Failed to refresh access code: {} {}", errorCode.toStdString(), errorMessage.toStdString());
         emit refreshAccessCodeResult(false, errorCode, errorMessage);
     }
+}
+
+void HostManager::setIceServers(const QJsonArray& iceServers)
+{
+    m_iceServers = iceServers;
+    LOG_INFO("ICE servers configuration updated: {} server(s)", m_iceServers.size());
+}
+
+QJsonArray HostManager::getIceServers() const
+{
+    return m_iceServers;
 }
 
 } // namespace quickdesk

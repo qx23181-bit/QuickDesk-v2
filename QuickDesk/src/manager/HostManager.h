@@ -6,6 +6,7 @@
 
 #include <QObject>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QList>
 #include <QMap>
 #include <QStringList>
@@ -53,6 +54,10 @@ public:
     Q_INVOKABLE void connectToServer(const QString& serverUrl, const QString& savedAccessCode);
     Q_INVOKABLE void disconnectFromServer();
     Q_INVOKABLE void sendHello();
+    
+    // ICE server configuration
+    void setIceServers(const QJsonArray& iceServers);
+    QJsonArray getIceServers() const;
 
     // Client management
     Q_INVOKABLE void authorizeClient(const QString& connectionId, bool authorized);
@@ -113,6 +118,9 @@ private:
     int m_signalingRetryCount = 0;
     int m_signalingNextRetryIn = 0;
     QString m_signalingError;
+    
+    // ICE server configuration
+    QJsonArray m_iceServers;
 
     void handleHelloResponse(const QJsonObject& message);
     void handleConnectResponse(const QJsonObject& message);
