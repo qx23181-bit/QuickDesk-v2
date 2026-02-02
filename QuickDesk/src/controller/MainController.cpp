@@ -20,6 +20,7 @@ MainController::MainController(QObject* parent)
     , m_turnServerManager(std::make_unique<TurnServerManager>(this))
     , m_hostManager(std::make_unique<HostManager>(this))
     , m_clientManager(std::make_unique<ClientManager>(this))
+    , m_remoteDeviceManager(std::make_unique<RemoteDeviceManager>(this))
 {
     // Connect ProcessManager signals
     connect(m_processManager.get(), &ProcessManager::hostProcessStarted,
@@ -150,6 +151,13 @@ void MainController::initialize()
 {
     LOG_INFO("MainController::initialize()");
     
+    // Initialize RemoteDeviceManager
+    if (!m_remoteDeviceManager->init()) {
+        LOG_ERROR("Failed to initialize RemoteDeviceManager");
+    } else {
+        LOG_INFO("RemoteDeviceManager initialized successfully");
+    }
+    
     // Auto-detect executable paths
     if (!m_processManager->autoDetectPaths()) {
         LOG_WARN("Could not auto-detect all executable paths");
@@ -257,6 +265,11 @@ ClientManager* MainController::clientManager() const
 TurnServerManager* MainController::turnServerManager() const
 {
     return m_turnServerManager.get();
+}
+
+RemoteDeviceManager* MainController::remoteDeviceManager() const
+{
+    return m_remoteDeviceManager.get();
 }
 
 QString MainController::deviceId() const

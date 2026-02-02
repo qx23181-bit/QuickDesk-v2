@@ -29,6 +29,9 @@ ApplicationWindow {
     // Remote window management - single window for all connections
     property var remoteWindow: null
     
+    // Temporary storage for device credentials during connection
+    property var pendingDeviceCredentials: ({})
+    
     // Main controller - reuse existing controller
     property MainController mainController: MainController {
         id: mainControllerObj
@@ -44,6 +47,34 @@ ApplicationWindow {
         
         onAccessCodeChanged: {
             console.log("Access Code changed:", mainControllerObj.accessCode)
+        }
+    }
+    
+    // Listen to connection state changes to save device credentials
+    Connections {
+        target: mainController.clientManager
+        
+        function onConnectionStateChanged(connectionId, state, hostInfo) {
+            console.log("MainWindow: Connection state changed:", connectionId, "->", state)
+            
+            // Save device credentials when connection is successfully established
+            if (state === "connected" && root.pendingDeviceCredentials[connectionId]) {
+                var credentials = root.pendingDeviceCredentials[connectionId]
+                console.log("Saving device to history:", credentials.deviceId)
+                
+                mainController.remoteDeviceManager.saveDevice(
+                    credentials.deviceId,
+                    credentials.password
+                )
+                
+                // Clean up pending credentials
+                delete root.pendingDeviceCredentials[connectionId]
+            }
+            
+            // Clean up pending credentials on failure
+            if (state === "failed" && root.pendingDeviceCredentials[connectionId]) {
+                delete root.pendingDeviceCredentials[connectionId]
+            }
         }
     }
     
@@ -92,7 +123,7 @@ ApplicationWindow {
     function showRemoteWindow(connectionId, deviceId) {
         console.log("showRemoteWindow called:", connectionId, deviceId)
         
-        // Validate connection exists
+        // Validate connection exists (silently fail if not, may be connecting or failed quickly)
         var connectionIds = mainController.clientManager.connectionIds
         var connectionExists = false
         for (var i = 0; i < connectionIds.length; i++) {
@@ -103,8 +134,7 @@ ApplicationWindow {
         }
         
         if (!connectionExists) {
-            console.warn("Connection not found:", connectionId)
-            toast.show(qsTr("Connection not found: ") + connectionId, QDToast.Type.Error)
+            console.log("Connection not found (may be connecting or failed):", connectionId)
             return false
         }
         
@@ -271,10 +301,14 @@ ApplicationWindow {
                         toast.show(qsTr("Connecting..."), QDToast.Type.Info)
                         var connId = root.mainController.connectToRemoteHost(deviceId, password)
                         if (connId) {
-                            // Create remote window after a short delay to allow connection to establish
-                            Qt.callLater(function() {
-                                root.showRemoteWindow(connId, deviceId)
-                            })
+                            // Store password temporarily for saving after successful connection
+                            root.pendingDeviceCredentials[connId] = {
+                                deviceId: deviceId,
+                                password: password
+                            }
+                            
+                            // Create remote window immediately (it will handle connection states)
+                            root.showRemoteWindow(connId, deviceId)
                         }
                     }
                     onViewConnectionRequested: function(connectionId) {

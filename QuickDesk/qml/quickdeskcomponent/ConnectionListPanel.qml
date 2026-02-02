@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../component"
 
 ColumnLayout {
     id: root
@@ -138,13 +139,8 @@ ColumnLayout {
                             iconSource: FluentIconGlyph.fullScreenGlyph
                             buttonStyle: QDIconButton.Style.Subtle
                             Layout.alignment: Qt.AlignVCenter  // Layout中垂直居中
-                            enabled: {
-                                if (root.panelType === "connections") {
-                                    var state = root.mainController.clientManager.getConnectionState(modelData)
-                                    return state === "connected" || state === "已连接"
-                                }
-                                return false
-                            }
+                            // Connection is in the list means it exists, so button is always enabled
+                            enabled: root.panelType === "connections"
                             onClicked: {
                                 root.viewConnectionRequested(modelData)
                             }

@@ -20,6 +20,14 @@ public:
     bool removeIpRange(int ipRangeId);
     bool allIpRange(QVector<IpRange>& ipRanges);
 
+    // Remote devices operations
+    bool addOrUpdateRemoteDevice(const RemoteDevice& device);
+    bool removeRemoteDevice(const QString& deviceId);
+    bool getRemoteDevice(const QString& deviceId, RemoteDevice& device);
+    bool getAllRemoteDevices(QVector<RemoteDevice>& devices);
+    bool updateDeviceLastConnected(const QString& deviceId);
+    bool cleanOldDevices(int maxCount);
+
 private:
     bool initTables() override;
     bool upgradeTables();

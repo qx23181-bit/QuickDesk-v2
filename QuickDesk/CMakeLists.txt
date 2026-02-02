@@ -12,6 +12,7 @@ set(MANAGER_SOURCES
     src/manager/HostManager.cpp
     src/manager/ClientManager.cpp
     src/manager/SharedMemoryManager.cpp
+    src/manager/RemoteDeviceManager.cpp
 )
 
 set(MANAGER_HEADERS
@@ -22,6 +23,7 @@ set(MANAGER_HEADERS
     src/manager/HostManager.h
     src/manager/ClientManager.h
     src/manager/SharedMemoryManager.h
+    src/manager/RemoteDeviceManager.h
 )
 
 set(CONTROLLER_SOURCES
@@ -154,11 +156,11 @@ qt_add_qml_module(QuickDesk
         qml/component/QDTextArea.qml
         qml/component/QDSearchBox.qml
         qml/component/QDNavigationView.qml
-        qml/component/ConnectionListPanel.qml
         qml/quickdeskcomponent/RemoteDesktopView.qml
         qml/quickdeskcomponent/RemoteTab.qml
         qml/quickdeskcomponent/RemoteTabBar.qml
         qml/quickdeskcomponent/FloatingToolButton.qml
+        qml/quickdeskcomponent/ConnectionListPanel.qml
     RESOURCES
         res/font/SegoeFluentIcons.ttf
         qml/component/qmldir

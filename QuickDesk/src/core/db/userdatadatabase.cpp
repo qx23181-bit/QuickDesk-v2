@@ -1,6 +1,7 @@
 #include "userdatadatabase.h"
 
 #include <QDataStream>
+#include <QDateTime>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -12,6 +13,7 @@ namespace core {
 
 constexpr char kDeviceDb[] = "userdata.db";
 constexpr char kIpRangeListTable[] = "ip_range_list";
+constexpr char kRemoteDevicesTable[] = "remote_devices";
 
 bool UserDataDataBase::init()
 {
@@ -34,6 +36,32 @@ bool UserDataDataBase::initTables()
               .arg(kIpRangeListTable);
     if (!query.prepare(sql) || !query.exec()) {
         LOG_ERROR("[database] create table {} failed:{}", kIpRangeListTable, query.lastError().text().toStdString());
+        return false;
+    }
+
+    // Create remote_devices table
+    sql = QString(R"(
+        CREATE TABLE IF NOT EXISTS %1 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL UNIQUE,
+            device_name TEXT,
+            access_password TEXT,
+            is_favorite INTEGER DEFAULT 0,
+            connection_count INTEGER DEFAULT 0,
+            last_connected_time INTEGER,
+            created_time INTEGER NOT NULL
+            )
+        )")
+              .arg(kRemoteDevicesTable);
+    if (!query.prepare(sql) || !query.exec()) {
+        LOG_ERROR("[database] create table {} failed:{}", kRemoteDevicesTable, query.lastError().text().toStdString());
+        return false;
+    }
+
+    // Create index on last_connected_time for better sorting performance
+    sql = QString("CREATE INDEX IF NOT EXISTS idx_last_connected ON %1(last_connected_time DESC)").arg(kRemoteDevicesTable);
+    if (!query.prepare(sql) || !query.exec()) {
+        LOG_ERROR("[database] create index on {} failed:{}", kRemoteDevicesTable, query.lastError().text().toStdString());
         return false;
     }
 
@@ -124,6 +152,202 @@ bool UserDataDataBase::allIpRange(QVector<IpRange>& ipRanges)
         ipRanges.push_back({ id, startIp, stopIp, startPort, stopPort });
     }
 
+    return true;
+}
+
+bool UserDataDataBase::addOrUpdateRemoteDevice(const RemoteDevice& device)
+{
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    
+    // Check if device exists
+    QString checkSql = QString("SELECT id FROM %1 WHERE device_id = :device_id").arg(kRemoteDevicesTable);
+    query.prepare(checkSql);
+    query.bindValue(":device_id", device.deviceId);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] check device existence failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    bool exists = query.next();
+    query.finish();
+    
+    if (exists) {
+        // Update existing device
+        QString updateSql = QString(R"(
+            UPDATE %1 SET 
+                device_name = :device_name,
+                access_password = :access_password,
+                is_favorite = :is_favorite,
+                connection_count = connection_count + 1,
+                last_connected_time = :last_connected_time
+            WHERE device_id = :device_id
+        )").arg(kRemoteDevicesTable);
+        
+        query.prepare(updateSql);
+        query.bindValue(":device_name", device.deviceName);
+        query.bindValue(":access_password", device.accessPassword);
+        query.bindValue(":is_favorite", device.isFavorite ? 1 : 0);
+        query.bindValue(":last_connected_time", device.lastConnectedTime);
+        query.bindValue(":device_id", device.deviceId);
+        
+        if (!query.exec()) {
+            LOG_ERROR("[database] update device failed: {}", query.lastError().text().toStdString());
+            return false;
+        }
+    } else {
+        // Insert new device
+        QString insertSql = QString(R"(
+            INSERT INTO %1 (device_id, device_name, access_password, is_favorite, connection_count, last_connected_time, created_time)
+            VALUES (:device_id, :device_name, :access_password, :is_favorite, 1, :last_connected_time, :created_time)
+        )").arg(kRemoteDevicesTable);
+        
+        query.prepare(insertSql);
+        query.bindValue(":device_id", device.deviceId);
+        query.bindValue(":device_name", device.deviceName);
+        query.bindValue(":access_password", device.accessPassword);
+        query.bindValue(":is_favorite", device.isFavorite ? 1 : 0);
+        query.bindValue(":last_connected_time", device.lastConnectedTime);
+        query.bindValue(":created_time", device.createdTime);
+        
+        if (!query.exec()) {
+            LOG_ERROR("[database] insert device failed: {}", query.lastError().text().toStdString());
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+bool UserDataDataBase::removeRemoteDevice(const QString& deviceId)
+{
+    QString sql = QString("DELETE FROM %1 WHERE device_id = :device_id").arg(kRemoteDevicesTable);
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    query.prepare(sql);
+    query.bindValue(":device_id", deviceId);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] delete device failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    return true;
+}
+
+bool UserDataDataBase::getRemoteDevice(const QString& deviceId, RemoteDevice& device)
+{
+    QString sql = QString(R"(
+        SELECT id, device_id, device_name, access_password, is_favorite, connection_count, last_connected_time, created_time
+        FROM %1 WHERE device_id = :device_id
+    )").arg(kRemoteDevicesTable);
+    
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    query.prepare(sql);
+    query.bindValue(":device_id", deviceId);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] query device failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    if (query.next()) {
+        device.id = query.value(0).toInt();
+        device.deviceId = query.value(1).toString();
+        device.deviceName = query.value(2).toString();
+        device.accessPassword = query.value(3).toString();
+        device.isFavorite = query.value(4).toInt() == 1;
+        device.connectionCount = query.value(5).toInt();
+        device.lastConnectedTime = query.value(6).toLongLong();
+        device.createdTime = query.value(7).toLongLong();
+        return true;
+    }
+    
+    return false;
+}
+
+bool UserDataDataBase::getAllRemoteDevices(QVector<RemoteDevice>& devices)
+{
+    // Order by: favorites first, then by last connected time
+    QString sql = QString(R"(
+        SELECT id, device_id, device_name, access_password, is_favorite, connection_count, last_connected_time, created_time
+        FROM %1
+        ORDER BY is_favorite DESC, last_connected_time DESC
+    )").arg(kRemoteDevicesTable);
+    
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    query.prepare(sql);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] query all devices failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    while (query.next()) {
+        RemoteDevice device;
+        device.id = query.value(0).toInt();
+        device.deviceId = query.value(1).toString();
+        device.deviceName = query.value(2).toString();
+        device.accessPassword = query.value(3).toString();
+        device.isFavorite = query.value(4).toInt() == 1;
+        device.connectionCount = query.value(5).toInt();
+        device.lastConnectedTime = query.value(6).toLongLong();
+        device.createdTime = query.value(7).toLongLong();
+        devices.push_back(device);
+    }
+    
+    return true;
+}
+
+bool UserDataDataBase::updateDeviceLastConnected(const QString& deviceId)
+{
+    QString sql = QString(R"(
+        UPDATE %1 SET 
+            connection_count = connection_count + 1,
+            last_connected_time = :last_connected_time
+        WHERE device_id = :device_id
+    )").arg(kRemoteDevicesTable);
+    
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    query.prepare(sql);
+    query.bindValue(":last_connected_time", QDateTime::currentMSecsSinceEpoch());
+    query.bindValue(":device_id", deviceId);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] update device last connected failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    return true;
+}
+
+bool UserDataDataBase::cleanOldDevices(int maxCount)
+{
+    // Keep only the most recent maxCount devices (excluding favorites)
+    QString sql = QString(R"(
+        DELETE FROM %1
+        WHERE is_favorite = 0
+        AND id NOT IN (
+            SELECT id FROM %1
+            WHERE is_favorite = 0
+            ORDER BY last_connected_time DESC
+            LIMIT :max_count
+        )
+    )").arg(kRemoteDevicesTable);
+    
+    QSqlQuery query(QSqlDatabase::database(kDeviceDb));
+    query.prepare(sql);
+    query.bindValue(":max_count", maxCount);
+    
+    if (!query.exec()) {
+        LOG_ERROR("[database] clean old devices failed: {}", query.lastError().text().toStdString());
+        return false;
+    }
+    
+    int deletedCount = query.numRowsAffected();
+    if (deletedCount > 0) {
+        LOG_INFO("[database] cleaned {} old devices", deletedCount);
+    }
+    
     return true;
 }
 } // namespace core
