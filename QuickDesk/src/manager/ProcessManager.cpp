@@ -550,12 +550,11 @@ QString ProcessManager::findExecutable(const QString& name)
     
     // 2. Relative to workspace (for development)
     QString appDir = QCoreApplication::applicationDirPath();
-    searchPaths << QDir(appDir).filePath("../../src/out/Debug");
-    searchPaths << QDir(appDir).filePath("../../../src/out/Debug");
+#ifdef QT_DEBUG
     searchPaths << QDir(appDir).filePath("../../../../src/out/Debug");
-    
-    // 3. Absolute development paths
-    searchPaths << "D:/mycode/remoting/src/out/Debug";
+#else
+    searchPaths << QDir(appDir).filePath("../../../../src/out/Release");
+#endif
     
 #ifdef Q_OS_WIN
     QString exeName = name + ".exe";
