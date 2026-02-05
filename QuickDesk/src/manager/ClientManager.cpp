@@ -375,7 +375,7 @@ void ClientManager::onMessageReceived(const QJsonObject& message)
 {
     QString type = message["type"].toString();
 
-    if (type != "videoFrameReady") {
+    if (type != "videoFrameReady" && type != "performanceStatsUpdate") {
         LOG_DEBUG("Client received message: {}", type.toStdString());
     }
 
