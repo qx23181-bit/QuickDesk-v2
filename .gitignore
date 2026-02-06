@@ -57,3 +57,4 @@ compile_commands.json
 *.log
 *output*
 QuickDesk/3rdparty/spdlog
+*publish*

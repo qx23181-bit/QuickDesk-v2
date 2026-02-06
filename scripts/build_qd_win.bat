@@ -19,7 +19,7 @@ cd /d %~dp0
 :: 启动参数声明和默认值
 SETLOCAL EnableDelayedExpansion
 set cpu_mode=x64
-set build_mode=Debug
+set build_mode=Release
 set clean_output=false
 set errno=1
 
