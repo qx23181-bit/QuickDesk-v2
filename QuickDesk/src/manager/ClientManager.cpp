@@ -768,10 +768,11 @@ void ClientManager::handlePerformanceStatsUpdate(const QJsonObject& message)
     // Timing breakdown (ms)
     stats["captureMs"]      = message["captureMs"].toDouble();
     stats["encodeMs"]       = message["encodeMs"].toDouble();
+    stats["networkDelayMs"] = message["networkDelayMs"].toDouble();
     stats["decodeMs"]       = message["decodeMs"].toDouble();
     stats["paintMs"]        = message["paintMs"].toDouble();
     stats["totalLatencyMs"] = message["totalLatencyMs"].toDouble();
-    stats["roundTripMs"]    = message["roundTripMs"].toDouble();
+    stats["inputRoundtripMs"] = message["inputRoundtripMs"].toDouble();
     // Throughput
     stats["bandwidthKbps"]  = message["bandwidthKbps"].toDouble();
     stats["frameRate"]      = message["frameRate"].toDouble();

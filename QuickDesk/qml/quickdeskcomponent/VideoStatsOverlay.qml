@@ -31,9 +31,10 @@ Rectangle {
     }
 
     readonly property double maxBarMs: {
-        if (!stats) return 1
+        if (!stats) return 50
         return Math.max(stats.captureMs || 0, stats.encodeMs || 0,
-                        stats.decodeMs || 0, stats.paintMs || 0, 1)
+                        stats.networkDelayMs || 0,
+                        stats.decodeMs || 0, stats.paintMs || 0, 50)
     }
 
     // Overlay-specific colors (fixed light-on-dark, not theme-dependent)
@@ -80,10 +81,11 @@ Rectangle {
 
         Repeater {
             model: [
-                { label: "Capture",  key: "captureMs", barColor: "#4FC3F7" },
-                { label: "Encode",   key: "encodeMs",  barColor: "#81C784" },
-                { label: "Decode",   key: "decodeMs",  barColor: "#FFB74D" },
-                { label: "Paint",    key: "paintMs",   barColor: "#E57373" }
+                { label: "Capture",  key: "captureMs",      barColor: "#4FC3F7" },
+                { label: "Encode",   key: "encodeMs",       barColor: "#81C784" },
+                { label: "Network",  key: "networkDelayMs", barColor: "#FFA726" },
+                { label: "Decode",   key: "decodeMs",       barColor: "#FFB74D" },
+                { label: "Paint",    key: "paintMs",        barColor: "#E57373" }
             ]
 
             RowLayout {
@@ -196,8 +198,8 @@ Rectangle {
 
             QDLabel {
                 Layout.fillWidth: true
-                label: "RTT"
-                value: root.fmtMs(root.stats ? root.stats.roundTripMs : 0)
+                label: "Input RTT"
+                value: root.fmtMs(root.stats ? root.stats.inputRoundtripMs : 0)
                 labelColor: root._overlayLabel; valueColor: root._overlayValue; monoValue: true
             }
 

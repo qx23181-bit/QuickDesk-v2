@@ -29,9 +29,9 @@ Window {
     
     // Performance stats stored separately to avoid triggering model rebuild
     // Map: connectionId -> { frameWidth, frameHeight, frameRate, ping,
-    //   originalWidth, originalHeight, captureMs, encodeMs, decodeMs, paintMs,
-    //   totalLatencyMs, roundTripMs, bandwidthKbps, packetRate, codec,
-    //   frameQuality, encodedRectWidth, encodedRectHeight }
+    //   originalWidth, originalHeight, captureMs, encodeMs, networkDelayMs,
+    //   decodeMs, paintMs, totalLatencyMs, inputRoundtripMs, bandwidthKbps,
+    //   packetRate, codec, frameQuality, encodedRectWidth, encodedRectHeight }
     property var performanceStatsMap: ({})
     property int statsVersion: 0  // Increment to notify changes
     
@@ -40,8 +40,8 @@ Window {
         return performanceStatsMap[connectionId] || {
             frameWidth: 0, frameHeight: 0, frameRate: 0, ping: 0,
             originalWidth: 0, originalHeight: 0,
-            captureMs: 0, encodeMs: 0, decodeMs: 0, paintMs: 0,
-            totalLatencyMs: 0, roundTripMs: 0,
+            captureMs: 0, encodeMs: 0, networkDelayMs: 0, decodeMs: 0, paintMs: 0,
+            totalLatencyMs: 0, inputRoundtripMs: 0,
             bandwidthKbps: 0, packetRate: 0,
             codec: "", frameQuality: -1,
             encodedRectWidth: 0, encodedRectHeight: 0
@@ -119,8 +119,8 @@ Window {
         newStatsMap[connectionId] = {
             frameWidth: 0, frameHeight: 0, frameRate: 0, ping: 0,
             originalWidth: 0, originalHeight: 0,
-            captureMs: 0, encodeMs: 0, decodeMs: 0, paintMs: 0,
-            totalLatencyMs: 0, roundTripMs: 0,
+            captureMs: 0, encodeMs: 0, networkDelayMs: 0, decodeMs: 0, paintMs: 0,
+            totalLatencyMs: 0, inputRoundtripMs: 0,
             bandwidthKbps: 0, packetRate: 0,
             codec: "", frameQuality: -1,
             encodedRectWidth: 0, encodedRectHeight: 0
@@ -489,10 +489,11 @@ Window {
                 newStatsMap[connectionId] = Object.assign({}, current, {
                     captureMs:         detailedStats.captureMs || 0,
                     encodeMs:          detailedStats.encodeMs || 0,
+                    networkDelayMs:    detailedStats.networkDelayMs || 0,
                     decodeMs:          detailedStats.decodeMs || 0,
                     paintMs:           detailedStats.paintMs || 0,
                     totalLatencyMs:    totalLatencyMs,
-                    roundTripMs:       detailedStats.roundTripMs || 0,
+                    inputRoundtripMs:  detailedStats.inputRoundtripMs || 0,
                     bandwidthKbps:     detailedStats.bandwidthKbps || 0,
                     packetRate:        detailedStats.packetRate || 0,
                     codec:             detailedStats.codec || "",
