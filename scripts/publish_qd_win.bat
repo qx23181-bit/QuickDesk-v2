@@ -193,7 +193,6 @@ del /q %publish_path%\*.lib 2>nul
 :: 删除不需要的Qt6 dll
 del /q %publish_path%\dxcompiler.dll 2>nul
 del /q %publish_path%\opengl32sw.dll 2>nul
-del /q %publish_path%\Qt6QuickControls2BasicStyleImpl.dll 2>nul
 del /q %publish_path%\Qt6QuickControls2FluentWinUI3StyleImpl.dll 2>nul
 del /q %publish_path%\Qt6QuickControls2Fusion.dll 2>nul
 del /q %publish_path%\Qt6QuickControls2FusionStyleImpl.dll 2>nul
