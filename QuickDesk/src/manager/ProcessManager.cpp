@@ -560,18 +560,47 @@ QString ProcessManager::findExecutable(const QString& name)
     searchPaths << QCoreApplication::applicationDirPath();
     
     // 2. Relative to workspace (for development)
+    //    Workspace root is the parent of QuickDesk/output/x64/{Debug|Release}
+    //    On Windows: applicationDirPath = .../QuickDesk/output/x64/Debug
+    //    On Mac:     applicationDirPath = .../QuickDesk/output/x64/Debug/QuickDesk.app/Contents/MacOS
     QString appDir = QCoreApplication::applicationDirPath();
-#ifdef QT_DEBUG
-    searchPaths << QDir(appDir).filePath("../../../../src/out/Debug");
+#ifdef Q_OS_MAC
+    // Go up 3 extra levels for .app/Contents/MacOS
+    static const QString kRelPrefix = "../../../../../../../src/out/";
 #else
-    searchPaths << QDir(appDir).filePath("../../../../src/out/Release");
+    static const QString kRelPrefix = "../../../../src/out/";
+#endif
+
+#ifdef QT_DEBUG
+    searchPaths << QDir(appDir).filePath(kRelPrefix + "Debug");
+#else
+    searchPaths << QDir(appDir).filePath(kRelPrefix + "Release");
 #endif
     
 #ifdef Q_OS_WIN
     QString exeName = name + ".exe";
+#elif defined(Q_OS_MAC)
+    // On Mac, host is an .app bundle; client is a plain executable.
+    // Try .app bundle first, then plain executable.
+    for (const QString& path : searchPaths) {
+        // Try as .app bundle: name.app/Contents/MacOS/name
+        QString bundlePath = QDir(path).filePath(
+            name + ".app/Contents/MacOS/" + name);
+        QFileInfo bundleInfo(bundlePath);
+        if (bundleInfo.exists() && bundleInfo.isExecutable()) {
+            return bundleInfo.absoluteFilePath();
+        }
+
+        // Try as plain executable
+        QString plainPath = QDir(path).filePath(name);
+        QFileInfo plainInfo(plainPath);
+        if (plainInfo.exists() && plainInfo.isExecutable()) {
+            return plainInfo.absoluteFilePath();
+        }
+    }
+    return QString();
 #else
     QString exeName = name;
-#endif
 
     for (const QString& path : searchPaths) {
         QString fullPath = QDir(path).filePath(exeName);
@@ -582,6 +611,7 @@ QString ProcessManager::findExecutable(const QString& name)
     }
 
     return QString();
+#endif
 }
 
 int ProcessManager::calculateRestartDelay(int retryCount) const

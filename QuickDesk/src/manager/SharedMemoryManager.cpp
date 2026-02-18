@@ -4,6 +4,10 @@
 #include "YUVPlanarVideoBuffer.h"
 #include "infra/log/log.h"
 
+#ifndef Q_OS_WIN
+#include <QNativeIpcKey>
+#endif
+
 namespace quickdesk {
 
 SharedMemoryManager::SharedMemoryManager(QObject* parent)
@@ -36,9 +40,16 @@ bool SharedMemoryManager::attach(const QString& connectionId,
     // Create new QSharedMemory instance
     auto shm = std::make_unique<QSharedMemory>();
     
-    // Use setNativeKey() to directly use the platform-specific name
-    // This allows interoperability with C++ client using native APIs
+    // Use setNativeKey() to directly use the platform-specific name.
+    // On macOS/Linux, the C++ client uses POSIX shm_open/sem_open, so we must
+    // explicitly specify PosixRealtime to match. Qt may default to SystemV
+    // (which uses ftok and requires real filesystem paths) if QT_POSIX_IPC
+    // was not defined at Qt build time.
+#ifdef Q_OS_WIN
     shm->setNativeKey(sharedMemoryName);
+#else
+    shm->setNativeKey(QNativeIpcKey(sharedMemoryName, QNativeIpcKey::Type::PosixRealtime));
+#endif
 
     // Attach to existing shared memory (created by C++ client)
     if (!shm->attach(QSharedMemory::ReadOnly)) {
