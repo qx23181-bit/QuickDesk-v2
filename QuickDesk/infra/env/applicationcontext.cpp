@@ -16,8 +16,8 @@ bool ApplicationContext::init()
     m_localPicturesPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
     m_localDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     m_localDownloadPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
-    m_logPath = applicationDirPath() + QDir::separator() + kLogPath;
-    m_dbPath = applicationDirPath() + QDir::separator() + kDbPath;
+    m_logPath = m_localDataPath + QDir::separator() + kLogPath;
+    m_dbPath = m_localDataPath + QDir::separator() + kDbPath;
 
     m_applicationMd5 = base::Util::fileMd5(applicationFilePath());
 
