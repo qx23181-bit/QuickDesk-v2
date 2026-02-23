@@ -579,6 +579,14 @@ QString ProcessManager::findExecutable(const QString& name)
     
 #ifdef Q_OS_WIN
     QString exeName = name + ".exe";
+
+    for (const QString& path : searchPaths) {
+        QString fullPath = QDir(path).filePath(exeName);
+        QFileInfo fileInfo(fullPath);
+        if (fileInfo.exists() && fileInfo.isExecutable()) {
+            return fileInfo.absoluteFilePath();
+        }
+    }
 #elif defined(Q_OS_MAC)
     // On Mac, host is an .app bundle; client is a plain executable.
     // Try .app bundle first, then plain executable.
@@ -598,20 +606,8 @@ QString ProcessManager::findExecutable(const QString& name)
             return plainInfo.absoluteFilePath();
         }
     }
-    return QString();
-#else
-    QString exeName = name;
-
-    for (const QString& path : searchPaths) {
-        QString fullPath = QDir(path).filePath(exeName);
-        QFileInfo fileInfo(fullPath);
-        if (fileInfo.exists() && fileInfo.isExecutable()) {
-            return fileInfo.absoluteFilePath();
-        }
-    }
-
-    return QString();
 #endif
+    return QString();
 }
 
 int ProcessManager::calculateRestartDelay(int retryCount) const
