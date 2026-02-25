@@ -2,6 +2,49 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
+    <name>AboutPage</name>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="30"/>
+        <source>About</source>
+        <translation>关于</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="73"/>
+        <source>Version</source>
+        <translation>版本</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="84"/>
+        <source>QuickDesk is an open-source remote desktop application built on Chromium Remoting technology, providing secure, high-performance remote control capabilities.</source>
+        <translation>QuickDesk 是一款基于 Chromium Remoting 技术开发的开源远程桌面应用，提供安全、高性能的远程控制功能。</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="106"/>
+        <source>Links</source>
+        <translation>相关链接</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="139"/>
+        <source>Source Code</source>
+        <translation>源代码</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="193"/>
+        <source>Based on Chromium Remoting</source>
+        <translation>基于 Chromium Remoting</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="239"/>
+        <source>License</source>
+        <translation>开源许可</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="249"/>
+        <source>This project is licensed under the BSD 3-Clause License, same as the Chromium project.</source>
+        <translation>本项目采用 BSD 3-Clause 许可证，与 Chromium 项目保持一致。</translation>
+    </message>
+</context>
+<context>
     <name>ConnectionListPanel</name>
     <message>
         <location filename="../../qml/quickdeskcomponent/ConnectionListPanel.qml" line="14"/>
@@ -250,44 +293,44 @@
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="426"/>
-        <location filename="../../qml/views/MainWindow.qml" line="432"/>
         <location filename="../../qml/views/MainWindow.qml" line="433"/>
-        <location filename="../../qml/views/MainWindow.qml" line="434"/>
-        <location filename="../../qml/views/MainWindow.qml" line="435"/>
-        <location filename="../../qml/views/MainWindow.qml" line="436"/>
-        <location filename="../../qml/views/MainWindow.qml" line="437"/>
+        <location filename="../../qml/views/MainWindow.qml" line="439"/>
+        <location filename="../../qml/views/MainWindow.qml" line="440"/>
         <location filename="../../qml/views/MainWindow.qml" line="441"/>
         <location filename="../../qml/views/MainWindow.qml" line="442"/>
         <location filename="../../qml/views/MainWindow.qml" line="443"/>
         <location filename="../../qml/views/MainWindow.qml" line="444"/>
-        <location filename="../../qml/views/MainWindow.qml" line="445"/>
+        <location filename="../../qml/views/MainWindow.qml" line="448"/>
+        <location filename="../../qml/views/MainWindow.qml" line="449"/>
+        <location filename="../../qml/views/MainWindow.qml" line="450"/>
+        <location filename="../../qml/views/MainWindow.qml" line="451"/>
+        <location filename="../../qml/views/MainWindow.qml" line="452"/>
         <source>Host</source>
         <translation>主机</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="484"/>
-        <location filename="../../qml/views/MainWindow.qml" line="490"/>
         <location filename="../../qml/views/MainWindow.qml" line="491"/>
-        <location filename="../../qml/views/MainWindow.qml" line="492"/>
-        <location filename="../../qml/views/MainWindow.qml" line="493"/>
-        <location filename="../../qml/views/MainWindow.qml" line="494"/>
-        <location filename="../../qml/views/MainWindow.qml" line="495"/>
+        <location filename="../../qml/views/MainWindow.qml" line="497"/>
+        <location filename="../../qml/views/MainWindow.qml" line="498"/>
         <location filename="../../qml/views/MainWindow.qml" line="499"/>
         <location filename="../../qml/views/MainWindow.qml" line="500"/>
         <location filename="../../qml/views/MainWindow.qml" line="501"/>
         <location filename="../../qml/views/MainWindow.qml" line="502"/>
-        <location filename="../../qml/views/MainWindow.qml" line="503"/>
+        <location filename="../../qml/views/MainWindow.qml" line="506"/>
+        <location filename="../../qml/views/MainWindow.qml" line="507"/>
+        <location filename="../../qml/views/MainWindow.qml" line="508"/>
+        <location filename="../../qml/views/MainWindow.qml" line="509"/>
+        <location filename="../../qml/views/MainWindow.qml" line="510"/>
         <source>Client</source>
         <translation>客户端</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="426"/>
-        <location filename="../../qml/views/MainWindow.qml" line="437"/>
-        <location filename="../../qml/views/MainWindow.qml" line="445"/>
-        <location filename="../../qml/views/MainWindow.qml" line="484"/>
-        <location filename="../../qml/views/MainWindow.qml" line="495"/>
-        <location filename="../../qml/views/MainWindow.qml" line="503"/>
+        <location filename="../../qml/views/MainWindow.qml" line="433"/>
+        <location filename="../../qml/views/MainWindow.qml" line="444"/>
+        <location filename="../../qml/views/MainWindow.qml" line="452"/>
+        <location filename="../../qml/views/MainWindow.qml" line="491"/>
+        <location filename="../../qml/views/MainWindow.qml" line="502"/>
+        <location filename="../../qml/views/MainWindow.qml" line="510"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
@@ -308,71 +351,76 @@
         <translation>远程窗口未就绪</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="314"/>
+        <location filename="../../qml/views/MainWindow.qml" line="260"/>
+        <source>About</source>
+        <translation>关于</translation>
+    </message>
+    <message>
+        <location filename="../../qml/views/MainWindow.qml" line="315"/>
         <source>Already connected, switched to existing window</source>
         <translation>已连接，切换到现有窗口</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="319"/>
+        <location filename="../../qml/views/MainWindow.qml" line="320"/>
         <source>Connecting...</source>
         <translation>连接中...</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="356"/>
+        <location filename="../../qml/views/MainWindow.qml" line="357"/>
         <source>Cannot find device for connection: </source>
         <translation>找不到要连接的设备：</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="441"/>
-        <location filename="../../qml/views/MainWindow.qml" line="499"/>
+        <location filename="../../qml/views/MainWindow.qml" line="448"/>
+        <location filename="../../qml/views/MainWindow.qml" line="506"/>
         <source>Not Started</source>
         <translation>未启动</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="442"/>
-        <location filename="../../qml/views/MainWindow.qml" line="500"/>
+        <location filename="../../qml/views/MainWindow.qml" line="449"/>
+        <location filename="../../qml/views/MainWindow.qml" line="507"/>
         <source>Starting</source>
         <translation>启动中</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="443"/>
-        <location filename="../../qml/views/MainWindow.qml" line="501"/>
+        <location filename="../../qml/views/MainWindow.qml" line="450"/>
+        <location filename="../../qml/views/MainWindow.qml" line="508"/>
         <source>Start Failed</source>
         <translation>启动失败</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="444"/>
-        <location filename="../../qml/views/MainWindow.qml" line="502"/>
+        <location filename="../../qml/views/MainWindow.qml" line="451"/>
+        <location filename="../../qml/views/MainWindow.qml" line="509"/>
         <source>Restarting</source>
         <translation>重启中</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="432"/>
-        <location filename="../../qml/views/MainWindow.qml" line="490"/>
+        <location filename="../../qml/views/MainWindow.qml" line="439"/>
+        <location filename="../../qml/views/MainWindow.qml" line="497"/>
         <source>Disconnected</source>
         <translation>未连接</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="433"/>
-        <location filename="../../qml/views/MainWindow.qml" line="491"/>
+        <location filename="../../qml/views/MainWindow.qml" line="440"/>
+        <location filename="../../qml/views/MainWindow.qml" line="498"/>
         <source>Connecting</source>
         <translation>连接中</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="434"/>
-        <location filename="../../qml/views/MainWindow.qml" line="492"/>
+        <location filename="../../qml/views/MainWindow.qml" line="441"/>
+        <location filename="../../qml/views/MainWindow.qml" line="499"/>
         <source>Connected</source>
         <translation>已连接</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="435"/>
-        <location filename="../../qml/views/MainWindow.qml" line="493"/>
+        <location filename="../../qml/views/MainWindow.qml" line="442"/>
+        <location filename="../../qml/views/MainWindow.qml" line="500"/>
         <source>Connection Failed</source>
         <translation>连接失败</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="436"/>
-        <location filename="../../qml/views/MainWindow.qml" line="494"/>
+        <location filename="../../qml/views/MainWindow.qml" line="443"/>
+        <location filename="../../qml/views/MainWindow.qml" line="501"/>
         <source>Reconnecting</source>
         <translation>重连中</translation>
     </message>
@@ -790,26 +838,6 @@
         <location filename="../../qml/pages/SettingsPage.qml" line="566"/>
         <source>Dark</source>
         <translation>深色</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="593"/>
-        <source>About</source>
-        <translation>关于</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="624"/>
-        <source>Version</source>
-        <translation>版本</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="630"/>
-        <source>Remote Desktop Software</source>
-        <translation>远程桌面软件</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="638"/>
-        <source>Check for Updates</source>
-        <translation>检查更新</translation>
     </message>
 </context>
 <context>

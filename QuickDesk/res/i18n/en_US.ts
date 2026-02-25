@@ -2,6 +2,49 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context>
+    <name>AboutPage</name>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="30"/>
+        <source>About</source>
+        <translation>About</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="73"/>
+        <source>Version</source>
+        <translation>Version</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="84"/>
+        <source>QuickDesk is an open-source remote desktop application built on Chromium Remoting technology, providing secure, high-performance remote control capabilities.</source>
+        <translation>QuickDesk is an open-source remote desktop application built on Chromium Remoting technology, providing secure, high-performance remote control capabilities.</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="106"/>
+        <source>Links</source>
+        <translation>Links</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="139"/>
+        <source>Source Code</source>
+        <translation>Source Code</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="193"/>
+        <source>Based on Chromium Remoting</source>
+        <translation>Based on Chromium Remoting</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="239"/>
+        <source>License</source>
+        <translation>License</translation>
+    </message>
+    <message>
+        <location filename="../../qml/pages/AboutPage.qml" line="249"/>
+        <source>This project is licensed under the BSD 3-Clause License, same as the Chromium project.</source>
+        <translation>This project is licensed under the BSD 3-Clause License, same as the Chromium project.</translation>
+    </message>
+</context>
+<context>
     <name>ConnectionListPanel</name>
     <message>
         <location filename="../../qml/quickdeskcomponent/ConnectionListPanel.qml" line="14"/>
@@ -250,44 +293,44 @@
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="426"/>
-        <location filename="../../qml/views/MainWindow.qml" line="432"/>
         <location filename="../../qml/views/MainWindow.qml" line="433"/>
-        <location filename="../../qml/views/MainWindow.qml" line="434"/>
-        <location filename="../../qml/views/MainWindow.qml" line="435"/>
-        <location filename="../../qml/views/MainWindow.qml" line="436"/>
-        <location filename="../../qml/views/MainWindow.qml" line="437"/>
+        <location filename="../../qml/views/MainWindow.qml" line="439"/>
+        <location filename="../../qml/views/MainWindow.qml" line="440"/>
         <location filename="../../qml/views/MainWindow.qml" line="441"/>
         <location filename="../../qml/views/MainWindow.qml" line="442"/>
         <location filename="../../qml/views/MainWindow.qml" line="443"/>
         <location filename="../../qml/views/MainWindow.qml" line="444"/>
-        <location filename="../../qml/views/MainWindow.qml" line="445"/>
+        <location filename="../../qml/views/MainWindow.qml" line="448"/>
+        <location filename="../../qml/views/MainWindow.qml" line="449"/>
+        <location filename="../../qml/views/MainWindow.qml" line="450"/>
+        <location filename="../../qml/views/MainWindow.qml" line="451"/>
+        <location filename="../../qml/views/MainWindow.qml" line="452"/>
         <source>Host</source>
         <translation>Host</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="484"/>
-        <location filename="../../qml/views/MainWindow.qml" line="490"/>
         <location filename="../../qml/views/MainWindow.qml" line="491"/>
-        <location filename="../../qml/views/MainWindow.qml" line="492"/>
-        <location filename="../../qml/views/MainWindow.qml" line="493"/>
-        <location filename="../../qml/views/MainWindow.qml" line="494"/>
-        <location filename="../../qml/views/MainWindow.qml" line="495"/>
+        <location filename="../../qml/views/MainWindow.qml" line="497"/>
+        <location filename="../../qml/views/MainWindow.qml" line="498"/>
         <location filename="../../qml/views/MainWindow.qml" line="499"/>
         <location filename="../../qml/views/MainWindow.qml" line="500"/>
         <location filename="../../qml/views/MainWindow.qml" line="501"/>
         <location filename="../../qml/views/MainWindow.qml" line="502"/>
-        <location filename="../../qml/views/MainWindow.qml" line="503"/>
+        <location filename="../../qml/views/MainWindow.qml" line="506"/>
+        <location filename="../../qml/views/MainWindow.qml" line="507"/>
+        <location filename="../../qml/views/MainWindow.qml" line="508"/>
+        <location filename="../../qml/views/MainWindow.qml" line="509"/>
+        <location filename="../../qml/views/MainWindow.qml" line="510"/>
         <source>Client</source>
         <translation>Client</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="426"/>
-        <location filename="../../qml/views/MainWindow.qml" line="437"/>
-        <location filename="../../qml/views/MainWindow.qml" line="445"/>
-        <location filename="../../qml/views/MainWindow.qml" line="484"/>
-        <location filename="../../qml/views/MainWindow.qml" line="495"/>
-        <location filename="../../qml/views/MainWindow.qml" line="503"/>
+        <location filename="../../qml/views/MainWindow.qml" line="433"/>
+        <location filename="../../qml/views/MainWindow.qml" line="444"/>
+        <location filename="../../qml/views/MainWindow.qml" line="452"/>
+        <location filename="../../qml/views/MainWindow.qml" line="491"/>
+        <location filename="../../qml/views/MainWindow.qml" line="502"/>
+        <location filename="../../qml/views/MainWindow.qml" line="510"/>
         <source>Unknown</source>
         <translation>Unknown</translation>
     </message>
@@ -308,71 +351,76 @@
         <translation>RemoteWindow not ready</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="314"/>
+        <location filename="../../qml/views/MainWindow.qml" line="260"/>
+        <source>About</source>
+        <translation>About</translation>
+    </message>
+    <message>
+        <location filename="../../qml/views/MainWindow.qml" line="315"/>
         <source>Already connected, switched to existing window</source>
         <translation>Already connected, switched to existing window</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="319"/>
+        <location filename="../../qml/views/MainWindow.qml" line="320"/>
         <source>Connecting...</source>
         <translation>Connecting...</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="356"/>
+        <location filename="../../qml/views/MainWindow.qml" line="357"/>
         <source>Cannot find device for connection: </source>
         <translation>Cannot find device for connection: </translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="441"/>
-        <location filename="../../qml/views/MainWindow.qml" line="499"/>
+        <location filename="../../qml/views/MainWindow.qml" line="448"/>
+        <location filename="../../qml/views/MainWindow.qml" line="506"/>
         <source>Not Started</source>
         <translation>Not Started</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="442"/>
-        <location filename="../../qml/views/MainWindow.qml" line="500"/>
+        <location filename="../../qml/views/MainWindow.qml" line="449"/>
+        <location filename="../../qml/views/MainWindow.qml" line="507"/>
         <source>Starting</source>
         <translation>Starting</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="443"/>
-        <location filename="../../qml/views/MainWindow.qml" line="501"/>
+        <location filename="../../qml/views/MainWindow.qml" line="450"/>
+        <location filename="../../qml/views/MainWindow.qml" line="508"/>
         <source>Start Failed</source>
         <translation>Start Failed</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="444"/>
-        <location filename="../../qml/views/MainWindow.qml" line="502"/>
+        <location filename="../../qml/views/MainWindow.qml" line="451"/>
+        <location filename="../../qml/views/MainWindow.qml" line="509"/>
         <source>Restarting</source>
         <translation>Restarting</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="432"/>
-        <location filename="../../qml/views/MainWindow.qml" line="490"/>
+        <location filename="../../qml/views/MainWindow.qml" line="439"/>
+        <location filename="../../qml/views/MainWindow.qml" line="497"/>
         <source>Disconnected</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="433"/>
-        <location filename="../../qml/views/MainWindow.qml" line="491"/>
+        <location filename="../../qml/views/MainWindow.qml" line="440"/>
+        <location filename="../../qml/views/MainWindow.qml" line="498"/>
         <source>Connecting</source>
         <translation>Connecting</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="434"/>
-        <location filename="../../qml/views/MainWindow.qml" line="492"/>
+        <location filename="../../qml/views/MainWindow.qml" line="441"/>
+        <location filename="../../qml/views/MainWindow.qml" line="499"/>
         <source>Connected</source>
         <translation>Connected</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="435"/>
-        <location filename="../../qml/views/MainWindow.qml" line="493"/>
+        <location filename="../../qml/views/MainWindow.qml" line="442"/>
+        <location filename="../../qml/views/MainWindow.qml" line="500"/>
         <source>Connection Failed</source>
         <translation>Connection Failed</translation>
     </message>
     <message>
-        <location filename="../../qml/views/MainWindow.qml" line="436"/>
-        <location filename="../../qml/views/MainWindow.qml" line="494"/>
+        <location filename="../../qml/views/MainWindow.qml" line="443"/>
+        <location filename="../../qml/views/MainWindow.qml" line="501"/>
         <source>Reconnecting</source>
         <translation>Reconnecting</translation>
     </message>
@@ -790,26 +838,6 @@
         <location filename="../../qml/pages/SettingsPage.qml" line="566"/>
         <source>Dark</source>
         <translation>Dark</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="593"/>
-        <source>About</source>
-        <translation>About</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="624"/>
-        <source>Version</source>
-        <translation>Version</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="630"/>
-        <source>Remote Desktop Software</source>
-        <translation>Remote Desktop Software</translation>
-    </message>
-    <message>
-        <location filename="../../qml/pages/SettingsPage.qml" line="638"/>
-        <source>Check for Updates</source>
-        <translation>Check for Updates</translation>
     </message>
 </context>
 <context>
