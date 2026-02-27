@@ -75,16 +75,14 @@ void HostManager::connectToServer(const QString& serverUrl, const QString& saved
         LOG_INFO("Sending connect message to host, serverUrl: {}", serverUrl.toStdString());
     }
     
-    // Include ICE configuration if provided (using standard Chrome Remoting format)
-    if (!m_iceServers.isEmpty()) {
-        QJsonObject iceConfig;
-        iceConfig["iceServers"] = m_iceServers;
-        // Optional: Set lifetime duration (12 hours = 43200 seconds)
-        //iceConfig["lifetimeDuration"] = "43200.000s";
-        message["iceConfig"] = iceConfig;
-        LOG_INFO("Sending ICE config with {} server(s)", m_iceServers.size());
+    if (!m_iceConfig.isEmpty()) {
+        message["iceConfig"] = m_iceConfig;
+        QJsonArray servers = m_iceConfig.value("iceServers").toArray();
+        LOG_INFO("Sending ICE config with {} server(s), lifetime={}",
+                 servers.size(),
+                 m_iceConfig.value("lifetimeDuration").toString("unset").toStdString());
     } else {
-        LOG_INFO("No custom ICE servers configured, host will use defaults");
+        LOG_INFO("No ICE config available, host will use defaults");
     }
 
     m_messaging->sendMessage(message);
@@ -509,15 +507,16 @@ void HostManager::handleRefreshAccessCodeResponse(const QJsonObject& message)
     }
 }
 
-void HostManager::setIceServers(const QJsonArray& iceServers)
+void HostManager::setIceConfig(const QJsonObject& iceConfig)
 {
-    m_iceServers = iceServers;
-    LOG_INFO("ICE servers configuration updated: {} server(s)", m_iceServers.size());
+    m_iceConfig = iceConfig;
+    QJsonArray servers = m_iceConfig.value("iceServers").toArray();
+    LOG_INFO("ICE config updated: {} server(s)", servers.size());
 }
 
-QJsonArray HostManager::getIceServers() const
+QJsonObject HostManager::getIceConfig() const
 {
-    return m_iceServers;
+    return m_iceConfig;
 }
 
 } // namespace quickdesk

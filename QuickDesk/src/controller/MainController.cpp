@@ -380,11 +380,9 @@ void MainController::onHostProcessStarted()
     // Set up Native Messaging
     m_hostManager->setMessaging(m_processManager->hostMessaging());
     
-    // Set ICE servers from TurnServerManager
-    QJsonArray effectiveServers = m_turnServerManager->getEffectiveServers();
-    m_hostManager->setIceServers(effectiveServers);
-    m_clientManager->setIceServers(effectiveServers);
-    LOG_INFO("Set ICE servers: {} server(s)", effectiveServers.size());
+    // Set ICE config (may be STUN-only if server fetch hasn't completed yet)
+    QJsonObject iceConfig = m_turnServerManager->getEffectiveIceConfig();
+    m_hostManager->setIceConfig(iceConfig);
     
     // Send hello to verify communication and connect to signaling server
     QTimer::singleShot(500, this, [this]() {
@@ -449,6 +447,10 @@ void MainController::onClientProcessStarted()
     
     // Set up Native Messaging
     m_clientManager->setMessaging(m_processManager->clientMessaging());
+    
+    // Set ICE config on client
+    QJsonObject iceConfig = m_turnServerManager->getEffectiveIceConfig();
+    m_clientManager->setIceConfig(iceConfig);
     
     // Send hello to verify communication and pass local device_id for signaling identification
     // Wait for Host's device_id to be ready before sending

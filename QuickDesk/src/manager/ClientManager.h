@@ -59,9 +59,9 @@ public:
     // Set the Native Messaging handler
     void setMessaging(NativeMessaging* messaging);
     
-    // ICE server configuration
-    void setIceServers(const QJsonArray& iceServers);
-    QJsonArray getIceServers() const;
+    // ICE server configuration (full config with lifetimeDuration)
+    void setIceConfig(const QJsonObject& iceConfig);
+    QJsonObject getIceConfig() const;
 
     // Connection management
     Q_INVOKABLE QString connectToHost(const QString& deviceId,
@@ -165,8 +165,8 @@ private:
     QString m_activeConnectionId;
     int m_connectionCounter = 0;
     
-    // ICE server configuration
-    QJsonArray m_iceServers;
+    // ICE server configuration (full config object with iceServers + lifetimeDuration)
+    QJsonObject m_iceConfig;
 
     QString generateConnectionId();
     void handleHelloResponse(const QJsonObject& message);

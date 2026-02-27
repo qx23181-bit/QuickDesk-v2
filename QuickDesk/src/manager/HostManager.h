@@ -56,9 +56,9 @@ public:
     Q_INVOKABLE void disconnectFromServer();
     Q_INVOKABLE void sendHello();
     
-    // ICE server configuration
-    void setIceServers(const QJsonArray& iceServers);
-    QJsonArray getIceServers() const;
+    // ICE server configuration (full config with lifetimeDuration)
+    void setIceConfig(const QJsonObject& iceConfig);
+    QJsonObject getIceConfig() const;
 
     // Client management
     Q_INVOKABLE void authorizeClient(const QString& connectionId, bool authorized);
@@ -121,8 +121,8 @@ private:
     int m_signalingNextRetryIn = 0;
     QString m_signalingError;
     
-    // ICE server configuration
-    QJsonArray m_iceServers;
+    // ICE server configuration (full config object with iceServers + lifetimeDuration)
+    QJsonObject m_iceConfig;
 
     void handleHelloResponse(const QJsonObject& message);
     void handleConnectResponse(const QJsonObject& message);

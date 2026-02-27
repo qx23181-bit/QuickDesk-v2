@@ -12,10 +12,15 @@
 namespace quickdesk {
 
 /**
- * @brief Manages TURN/STUN server configuration
+ * @brief Manages STUN/TURN server configuration from two sources:
  * 
- * Stores and loads ICE server configurations from QSettings.
- * Supports multiple TURN/STUN servers.
+ *   1. Built-in STUN servers (always included)
+ *   2. User-configured servers (configured in UI, persisted locally; always included)
+ * 
+ * TURN credential fetching is handled on the Chromium side by
+ * QuickDeskIceConfigFetcher, which contacts the signaling server directly.
+ * This class only provides the initial STUN/user config to pass via
+ * native messaging.
  */
 class TurnServerManager : public QObject {
     Q_OBJECT
@@ -25,59 +30,29 @@ public:
     explicit TurnServerManager(QObject* parent = nullptr);
     ~TurnServerManager() override = default;
 
-    /**
-     * @brief Get all configured servers (user-defined only, without built-in)
-     */
     QJsonArray servers() const;
-    
-    /**
-     * @brief Set user-configured servers
-     */
     void setServers(const QJsonArray& servers);
     
     /**
-     * @brief Get effective ICE servers (user-defined + built-in if needed)
+     * @brief Get the ICE config object for native messaging
      * 
-     * If no TURN server in user config, automatically adds built-in TURN server.
-     * Built-in server is transparent to UI.
+     * Returns QJsonObject with "iceServers" containing built-in STUN + user servers.
+     * Does NOT include server-fetched TURN — that is handled by Chromium.
      */
-    Q_INVOKABLE QJsonArray getEffectiveServers() const;
+    Q_INVOKABLE QJsonObject getEffectiveIceConfig() const;
     
-    /**
-     * @brief Add a new TURN server
-     */
     Q_INVOKABLE bool addTurnServer(const QString& url,
                                      const QString& username,
                                      const QString& credential,
                                      int maxRateKbps = 8000);
-    
-    /**
-     * @brief Add a new STUN server
-     */
     Q_INVOKABLE bool addStunServer(const QString& url);
-    
-    /**
-     * @brief Remove server at index
-     */
     Q_INVOKABLE void removeServer(int index);
-    
-    /**
-     * @brief Clear all user-configured servers
-     */
     Q_INVOKABLE void clearServers();
-    
-    /**
-     * @brief Validate server URL format
-     */
     Q_INVOKABLE static bool validateServerUrl(const QString& url);
     
-    /**
-     * @brief Check if there are any TURN servers in the configuration
-     */
     Q_INVOKABLE bool hasTurnServer() const;
     Q_INVOKABLE bool hasTurnServer(const QJsonArray& servers) const;
 
-    // Load/save settings
     void loadSettings();
     void saveSettings();
 
@@ -85,23 +60,11 @@ signals:
     void serversChanged();
 
 private:
-    QJsonArray m_servers;  // User-configured servers only
-    
-    // Built-in TURN server (transparent to user)
-    static constexpr const char* BUILTIN_TURN_URL = "turn:turn.quickcoder.cc:3478";
-    static constexpr const char* BUILTIN_TURN_USERNAME = "qfturn";
-    static constexpr const char* BUILTIN_TURN_CREDENTIAL = "iunngalgag";
+    // Built-in STUN servers (always sent to Chromium)
+    QJsonArray m_builtinStunServers;
 
-    // Built-in STUN servers (transparent to user)
-    static constexpr const char* BUILTIN_STUN_URLS[] = {
-        "stun:stun.hot-chilli.net",
-        "stun:stun.internetcalls.com",
-        "stun:stun.miwifi.com",
-        "stun:stun.quickcoder.cc"
-    };
-    
-    QJsonObject createBuiltinTurnServer() const;
-    QJsonObject createBuiltinStunServer() const;
+    // User-configured servers (always sent to Chromium)
+    QJsonArray m_userServers;
 };
 
 } // namespace quickdesk
