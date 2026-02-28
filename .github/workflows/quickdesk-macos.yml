@@ -1,0 +1,71 @@
+name: QuickDesk macOS
+
+on:
+  push:
+    paths:
+      - 'QuickDesk/**'
+      - 'cmake/**'
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/quickdesk-macos.yml'
+  pull_request:
+    paths:
+      - 'QuickDesk/**'
+      - 'cmake/**'
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/quickdesk-macos.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-14
+    env:
+      QT_VERSION: '6.8.3'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+          modules: 'qtmultimedia qtwebsockets'
+
+      - name: Set Qt path
+        run: echo "ENV_QT_PATH=$(dirname "$QT_ROOT_DIR")" >> $GITHUB_ENV
+
+      - name: Build
+        run: bash scripts/build_qd_mac.sh Release
+
+      - name: Publish
+        run: bash scripts/publish_qd_mac.sh Release
+
+      - name: Get version
+        id: version
+        run: |
+          echo "version=$(cat version)" >> $GITHUB_OUTPUT
+          echo "ref-name=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickDesk-mac-arm64-${{ steps.version.outputs.ref-name }}
+          path: publish/Release/
+
+      - name: Package for release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd publish/Release
+          zip -r -y "$GITHUB_WORKSPACE/QuickDesk-mac-arm64-${{ steps.version.outputs.ref-name }}.zip" QuickDesk.app
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: QuickDesk-mac-arm64-${{ steps.version.outputs.ref-name }}.zip
+          asset_name: QuickDesk-mac-arm64-${{ steps.version.outputs.ref-name }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true

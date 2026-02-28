@@ -8,11 +8,13 @@ echo ---------------------------------------------------------------
 
 :: example: C:\QtPro\6.8.4
 if "%ENV_QT_PATH%"=="" set ENV_QT_PATH=C:\QtPro\6.8.4
-:: example: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat
-if "%ENV_VCVARSALL%"=="" set ENV_VCVARSALL=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat
+:: example: C:\Program Files\Microsoft Visual Studio\2022\Community
+if "%ENV_VS_INSTALL%"=="" set "ENV_VS_INSTALL=C:\Program Files\Microsoft Visual Studio\2022\Community"
+if "%ENV_VCVARSALL%"=="" set "ENV_VCVARSALL=%ENV_VS_INSTALL%\VC\Auxiliary\Build\vcvarsall.bat"
 :: VC Runtime DLL version
 if "%ENV_VCRUNTIME_VERSION%"=="" set ENV_VCRUNTIME_VERSION=14.42.34433
 
+echo ENV_VS_INSTALL %ENV_VS_INSTALL%
 echo ENV_VCVARSALL %ENV_VCVARSALL%
 echo ENV_QT_PATH %ENV_QT_PATH%
 echo ENV_VCRUNTIME_VERSION %ENV_VCRUNTIME_VERSION%
@@ -57,7 +59,7 @@ set publish_path=%script_path%..\publish\%build_mode%\
 set release_path=%script_path%..\output\x64\%build_mode%
 set src_out_path=%script_path%..\..\src\out\%build_mode%
 set vcvarsall="%ENV_VCVARSALL%"
-set vcruntime_path=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Redist\MSVC\%ENV_VCRUNTIME_VERSION%\x64\Microsoft.VC143.CRT
+set "vcruntime_path=%ENV_VS_INSTALL%\VC\Redist\MSVC\%ENV_VCRUNTIME_VERSION%\x64\Microsoft.VC143.CRT"
 
 echo [*] Qt MSVC path: %qt_msvc_path%
 echo [*] publish path: %publish_path%

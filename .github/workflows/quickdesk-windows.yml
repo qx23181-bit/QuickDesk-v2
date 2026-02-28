@@ -1,0 +1,90 @@
+name: QuickDesk Windows
+
+on:
+  push:
+    paths:
+      - 'QuickDesk/**'
+      - 'cmake/**'
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/quickdesk-windows.yml'
+  pull_request:
+    paths:
+      - 'QuickDesk/**'
+      - 'cmake/**'
+      - 'scripts/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/quickdesk-windows.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    env:
+      QT_VERSION: '6.8.3'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          cache: true
+          modules: 'qtmultimedia qtwebsockets'
+
+      - name: Set Qt path
+        shell: bash
+        run: echo "ENV_QT_PATH=$(dirname "$QT_ROOT_DIR")" >> $GITHUB_ENV
+
+      - name: Detect VS environment
+        shell: pwsh
+        run: |
+          $vs_install = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          echo "ENV_VS_INSTALL=$vs_install" >> $env:GITHUB_ENV
+
+          $redist_root = Join-Path $vs_install "VC\Redist\MSVC"
+          $latest = Get-ChildItem $redist_root -Directory |
+            Where-Object { $_.Name -match '^\d+\.' } |
+            Sort-Object Name -Descending |
+            Select-Object -First 1
+          echo "ENV_VCRUNTIME_VERSION=$($latest.Name)" >> $env:GITHUB_ENV
+
+      - name: Build
+        shell: cmd
+        run: call scripts\build_qd_win.bat Release
+
+      - name: Publish
+        shell: cmd
+        run: call scripts\publish_qd_win.bat Release
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          echo "version=$(cat version)" >> $GITHUB_OUTPUT
+          echo "ref-name=${GITHUB_REF##*/}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuickDesk-win-x64-${{ steps.version.outputs.ref-name }}
+          path: publish/Release/
+
+      - name: Package for release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "publish\Release\*" `
+            -DestinationPath "QuickDesk-win-x64-${{ steps.version.outputs.ref-name }}.zip"
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: QuickDesk-win-x64-${{ steps.version.outputs.ref-name }}.zip
+          asset_name: QuickDesk-win-x64-${{ steps.version.outputs.ref-name }}.zip
+          tag: ${{ github.ref }}
+          overwrite: true
