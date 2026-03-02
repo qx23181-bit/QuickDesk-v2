@@ -49,6 +49,9 @@ QuickDesk 是**首款 AI 原生远程桌面** —— 一款开源免费的远程
 远程桌面
 ![远程桌面](docs/image/screenshot_remote_zh.png)
 
+AI配置
+![AI配置](docs/image/screenshot_mcp_zh.jpg)
+
 ## 为什么选择 QuickDesk？
 
 ### AI 优先：唯一内置 MCP 的远程桌面  [ → MCP 接入指南](docs/MCP接入指南.md)

@@ -49,6 +49,9 @@ Main Interface
 Remote Desktop
 ![Remote Desktop](docs/image/screenshot_remote.png)
 
+AI Config
+![AI Config](docs/image/screenshot_mcp.jpg)
+
 ## Why QuickDesk?
 
 ### AI-First: The Only Remote Desktop with MCP Support  [ → MCP Integration Guide](docs/mcp-integration.md)
