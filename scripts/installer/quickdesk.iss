@@ -47,7 +47,7 @@ ShowLanguageDialog=auto
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "chinesesimplified"; MessagesFile: "ChineseSimplified.isl"
 
 [Messages]
 english.WelcomeLabel2=This will install [name/ver] on your computer.%n%nPlease read the following important information before continuing.
