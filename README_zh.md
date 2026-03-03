@@ -22,6 +22,9 @@
   <a href="https://github.com/barry-ran/QuickDesk/stargazers">
     <img src="https://img.shields.io/github/stars/barry-ran/QuickDesk" alt="Stars">
   </a>
+  <a href="https://gitcode.com/barry-ran/QuickDesk">
+    <img src="https://gitcode.com/barry-ran/QuickDesk/star/badge.svg" alt="Stars">
+  </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/barry-ran/QuickDesk" alt="License">
   </a>
