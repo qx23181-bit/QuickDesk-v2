@@ -109,6 +109,15 @@ public:
     Q_INVOKABLE void cancelFileUpload(const QString& connectionId, const QString& transferId);
     Q_INVOKABLE bool supportsFileTransfer(const QString& connectionId) const;
 
+    // File download (Host -> Client)
+    Q_INVOKABLE void startFileDownload(const QString& connectionId);
+    Q_INVOKABLE void cancelFileDownload(const QString& connectionId, const QString& transferId);
+
+    // Downloaded file operations
+    Q_INVOKABLE void openDownloadedFile(const QString& filePath);
+    Q_INVOKABLE void openContainingFolder(const QString& filePath);
+    Q_INVOKABLE bool deleteDownloadedFile(const QString& filePath);
+
     // State getters
     int connectionCount() const;
     QString activeConnectionId() const;
@@ -181,7 +190,7 @@ signals:
                                  bool supportsLockWorkstation,
                                  bool supportsFileTransfer);
 
-    // File transfer signals
+    // File upload signals
     void fileTransferProgress(const QString& connectionId,
                               const QString& transferId,
                               const QString& filename,
@@ -191,6 +200,24 @@ signals:
                               const QString& transferId,
                               const QString& filename);
     void fileTransferError(const QString& connectionId,
+                           const QString& transferId,
+                           const QString& errorMessage);
+
+    // File download signals
+    void fileDownloadStarted(const QString& connectionId,
+                             const QString& transferId,
+                             const QString& filename,
+                             double totalBytes);
+    void fileDownloadProgress(const QString& connectionId,
+                              const QString& transferId,
+                              const QString& filename,
+                              double bytesReceived,
+                              double totalBytes);
+    void fileDownloadComplete(const QString& connectionId,
+                              const QString& transferId,
+                              const QString& filename,
+                              const QString& savePath);
+    void fileDownloadError(const QString& connectionId,
                            const QString& transferId,
                            const QString& errorMessage);
 
@@ -231,6 +258,10 @@ private:
     void handleFileTransferProgress(const QJsonObject& message);
     void handleFileTransferComplete(const QJsonObject& message);
     void handleFileTransferError(const QJsonObject& message);
+    void handleFileDownloadStarted(const QJsonObject& message);
+    void handleFileDownloadProgress(const QJsonObject& message);
+    void handleFileDownloadComplete(const QJsonObject& message);
+    void handleFileDownloadError(const QJsonObject& message);
     
     void sendMouseEvent(const QString& connectionId, const QString& eventType,
                         int x, int y, int button,

@@ -30,6 +30,7 @@ export class DataChannelHandler extends EventTarget {
 
         this._nextFileTransferId = 1;
         this._activeUploads = new Map();
+        this._activeDownloads = new Map();
     }
 
     /**
@@ -412,6 +413,121 @@ export class DataChannelHandler extends EventTarget {
         }));
     }
 
+    /**
+     * Request a file download from the remote host.
+     * Host will show a file chooser dialog; the selected file is sent back
+     * and accumulated as a Blob for browser download.
+     * @returns {string|null} transferId or null on failure
+     */
+    startFileDownload() {
+        if (!this._pc) {
+            console.warn('[DataChannel] No PeerConnection for file download');
+            return null;
+        }
+        if (!this.supportsFileTransfer) {
+            console.warn('[DataChannel] Host does not support file transfer');
+            return null;
+        }
+
+        const transferId = String(this._nextFileTransferId++);
+        const channelName = `filetransfer-${transferId}`;
+        const channel = this._pc.createDataChannel(channelName, { ordered: true });
+        channel.binaryType = 'arraybuffer';
+
+        const state = {
+            transferId, filename: '', totalBytes: 0,
+            bytesReceived: 0, cancelled: false, channel,
+            chunks: [], metadataReceived: false
+        };
+        this._activeDownloads.set(transferId, state);
+
+        channel.onopen = () => {
+            if (state.cancelled) return;
+            console.log(`[DataChannel] Download channel opened: ${channelName}, sending RequestTransfer`);
+            const reqMsg = this._encodeFileTransfer({ requestTransfer: {} });
+            channel.send(reqMsg);
+        };
+
+        channel.onmessage = (event) => {
+            if (state.cancelled) return;
+            const msg = this._decodeFileTransfer(new Uint8Array(event.data));
+
+            if (msg.metadata) {
+                state.filename = msg.metadata.filename || 'download';
+                state.totalBytes = msg.metadata.size || 0;
+                state.metadataReceived = true;
+                console.log(`[DataChannel] Download metadata: ${state.filename} (${state.totalBytes} bytes)`);
+                this.dispatchEvent(new CustomEvent('fileDownloadStarted', {
+                    detail: { transferId, filename: state.filename, totalBytes: state.totalBytes }
+                }));
+            } else if (msg.data) {
+                state.chunks.push(msg.data);
+                state.bytesReceived += msg.data.byteLength;
+                this.dispatchEvent(new CustomEvent('fileDownloadProgress', {
+                    detail: {
+                        transferId, filename: state.filename,
+                        bytesReceived: state.bytesReceived, totalBytes: state.totalBytes
+                    }
+                }));
+            } else if (msg.end) {
+                console.log(`[DataChannel] Download end received: ${state.filename}`);
+                const successMsg = this._encodeFileTransfer({ success: {} });
+                channel.send(successMsg);
+
+                const blob = new Blob(state.chunks);
+                this.dispatchEvent(new CustomEvent('fileDownloadComplete', {
+                    detail: { transferId, filename: state.filename, blob }
+                }));
+                this._activeDownloads.delete(transferId);
+            } else if (msg.error) {
+                const errMsg = `Host error type=${msg.error.type}`;
+                console.error(`[DataChannel] Download error: ${errMsg}`);
+                this.dispatchEvent(new CustomEvent('fileDownloadError', {
+                    detail: { transferId, errorMessage: errMsg }
+                }));
+                this._activeDownloads.delete(transferId);
+            }
+        };
+
+        channel.onclose = () => {
+            console.log(`[DataChannel] Download channel closed: ${channelName}`);
+        };
+
+        channel.onerror = (event) => {
+            console.error(`[DataChannel] Download channel error:`, event);
+            this.dispatchEvent(new CustomEvent('fileDownloadError', {
+                detail: { transferId, errorMessage: 'Channel error' }
+            }));
+            this._activeDownloads.delete(transferId);
+        };
+
+        return transferId;
+    }
+
+    /**
+     * Cancel an in-progress file download.
+     * @param {string} transferId
+     */
+    cancelFileDownload(transferId) {
+        const state = this._activeDownloads.get(transferId);
+        if (!state) {
+            console.warn(`[DataChannel] cancelFileDownload: unknown transfer ${transferId}`);
+            return;
+        }
+        state.cancelled = true;
+        if (state.channel && state.channel.readyState === 'open') {
+            try {
+                const errMsg = this._encodeFileTransfer({ error: { type: 1 } });  // CANCELED
+                state.channel.send(errMsg);
+            } catch (e) { /* ignore */ }
+            state.channel.close();
+        }
+        this._activeDownloads.delete(transferId);
+        this.dispatchEvent(new CustomEvent('fileDownloadError', {
+            detail: { transferId, errorMessage: 'Cancelled by user' }
+        }));
+    }
+
     /** @private */
     _sendNextChunk(channel, file, offset, chunkSize, state) {
         if (state.cancelled) return;
@@ -486,6 +602,10 @@ export class DataChannelHandler extends EventTarget {
             // field 4 = Success (sub-message, empty)
             parts.push(0x22, 0x00);
         }
+        if (msg.requestTransfer) {
+            // field 5 = RequestTransfer (sub-message, empty)
+            parts.push(0x2A, 0x00);
+        }
         if (msg.error) {
             // field 6 = Error (sub-message), type: field 1 varint
             const inner = [0x08, ...this._encodeVarint(msg.error.type || 0)];
@@ -495,8 +615,8 @@ export class DataChannelHandler extends EventTarget {
     }
 
     /**
-     * Decode a FileTransfer protobuf response (simplified).
-     * Only parses Success (field 5) and Error (field 4).
+     * Decode a FileTransfer protobuf message.
+     * Parses Metadata (1), Data (2), End (3), Success (4), Error (6).
      * @private
      */
     _decodeFileTransfer(data) {
@@ -508,7 +628,6 @@ export class DataChannelHandler extends EventTarget {
             const wireType = tag & 0x07;
 
             if (wireType === 2) {
-                // length-delimited
                 let len = 0;
                 let shift = 0;
                 while (pos < data.length) {
@@ -520,10 +639,17 @@ export class DataChannelHandler extends EventTarget {
                 const subdata = data.subarray(pos, pos + len);
                 pos += len;
 
-                if (fieldNumber === 4) {
+                if (fieldNumber === 1) {
+                    // Metadata: filename (field 1 string), size (field 2 varint)
+                    result.metadata = this._decodeMetadata(subdata);
+                } else if (fieldNumber === 2) {
+                    // Data: data bytes (field 1 bytes)
+                    result.data = this._decodeDataField(subdata);
+                } else if (fieldNumber === 3) {
+                    result.end = true;
+                } else if (fieldNumber === 4) {
                     result.success = true;
                 } else if (fieldNumber === 6) {
-                    // Error sub-message: parse type (field 1 varint)
                     let errType = 0;
                     if (subdata.length > 1 && subdata[0] === 0x08) {
                         errType = subdata[1];
@@ -531,12 +657,78 @@ export class DataChannelHandler extends EventTarget {
                     result.error = { type: errType };
                 }
             } else if (wireType === 0) {
-                // varint - skip
                 while (pos < data.length && data[pos] & 0x80) pos++;
                 pos++;
             }
         }
         return result;
+    }
+
+    /** @private */
+    _decodeMetadata(data) {
+        const meta = { filename: '', size: 0 };
+        let pos = 0;
+        while (pos < data.length) {
+            const tag = data[pos++];
+            const fn = tag >> 3;
+            const wt = tag & 0x07;
+            if (wt === 2) {
+                let len = 0, shift = 0;
+                while (pos < data.length) {
+                    const b = data[pos++];
+                    len |= (b & 0x7F) << shift;
+                    if (!(b & 0x80)) break;
+                    shift += 7;
+                }
+                if (fn === 1) {
+                    meta.filename = new TextDecoder().decode(data.subarray(pos, pos + len));
+                }
+                pos += len;
+            } else if (wt === 0) {
+                let val = 0, shift = 0;
+                while (pos < data.length) {
+                    const b = data[pos++];
+                    val |= (b & 0x7F) << shift;
+                    if (!(b & 0x80)) break;
+                    shift += 7;
+                }
+                if (fn === 2) meta.size = val;
+            }
+        }
+        return meta;
+    }
+
+    /** @private */
+    _decodeDataField(data) {
+        let pos = 0;
+        while (pos < data.length) {
+            const tag = data[pos++];
+            const fn = tag >> 3;
+            const wt = tag & 0x07;
+            if (wt === 2 && fn === 1) {
+                let len = 0, shift = 0;
+                while (pos < data.length) {
+                    const b = data[pos++];
+                    len |= (b & 0x7F) << shift;
+                    if (!(b & 0x80)) break;
+                    shift += 7;
+                }
+                return data.slice(pos, pos + len).buffer;
+            } else if (wt === 0) {
+                while (pos < data.length && data[pos] & 0x80) pos++;
+                pos++;
+            } else if (wt === 2) {
+                let len = 0, shift = 0;
+                while (pos < data.length) {
+                    const b = data[pos++];
+                    len |= (b & 0x7F) << shift;
+                    if (!(b & 0x80)) break;
+                    shift += 7;
+                }
+                pos += len;
+            }
+        }
+        return new ArrayBuffer(0);
     }
 
     /**
@@ -622,5 +814,6 @@ export class DataChannelHandler extends EventTarget {
         this._eventReady = false;
         this._actionsReady = false;
         this._activeUploads.clear();
+        this._activeDownloads.clear();
     }
 }

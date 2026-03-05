@@ -43,6 +43,7 @@ Item {
     signal toggleVideoStats()
     signal showToast(string message, var toastType)
     signal uploadFileRequested()
+    signal downloadFileRequested()
     signal showTransferPanelRequested()
     
     // Apply framerate boost mode
@@ -487,6 +488,16 @@ Item {
             onTriggered: {
                 console.log("Upload file for:", root.connectionId)
                 root.uploadFileRequested()
+            }
+        }
+
+        QDMenuItem {
+            visible: root.supportsFileTransfer
+            text: qsTr("Download from Host")
+            iconText: FluentIconGlyph.downloadGlyph
+            onTriggered: {
+                console.log("Download file from host for:", root.connectionId)
+                root.downloadFileRequested()
             }
         }
 

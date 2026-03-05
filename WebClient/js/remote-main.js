@@ -164,6 +164,26 @@ class RemoteDesktopApp {
                 this._log(`Upload failed: ${e.detail.errorMessage}`);
             });
 
+            this.dcHandler.addEventListener('fileDownloadStarted', (e) => {
+                this._addTransferItem(e.detail.transferId, e.detail.filename, e.detail.totalBytes, 'download');
+                this._log(`Download started: ${e.detail.filename}`);
+            });
+
+            this.dcHandler.addEventListener('fileDownloadProgress', (e) => {
+                this._updateTransferProgress(e.detail.transferId, e.detail.bytesReceived, e.detail.totalBytes);
+            });
+
+            this.dcHandler.addEventListener('fileDownloadComplete', (e) => {
+                this._updateTransferStatus(e.detail.transferId, 'complete');
+                this._log(`Download complete: ${e.detail.filename}`);
+                this._triggerBrowserDownload(e.detail.blob, e.detail.filename);
+            });
+
+            this.dcHandler.addEventListener('fileDownloadError', (e) => {
+                this._updateTransferStatus(e.detail.transferId, 'error', e.detail.errorMessage);
+                this._log(`Download failed: ${e.detail.errorMessage}`);
+            });
+
             await this.session.connect(deviceId, accessCode);
 
         } catch (error) {
@@ -379,6 +399,12 @@ class RemoteDesktopApp {
             case 'uploadFile':
                 this._triggerFileUpload();
                 break;
+            case 'downloadFile':
+                if (this.dcHandler) {
+                    this.dcHandler.startFileDownload();
+                    this._log('Requested file download from host');
+                }
+                break;
             case 'showTransfers':
                 this._toggleTransferPanel();
                 break;
@@ -456,15 +482,17 @@ class RemoteDesktopApp {
         }
     }
 
-    _addTransferItem(transferId, filename, totalBytes) {
+    _addTransferItem(transferId, filename, totalBytes, direction = 'upload') {
         this._ensureTransferPanel();
         const list = this._transferPanel.querySelector('.transfer-panel-list');
         const item = document.createElement('div');
         item.className = 'transfer-item';
         item.dataset.transferId = transferId;
+        item.dataset.direction = direction;
+        const dirIcon = direction === 'download' ? '📥' : '📤';
         item.innerHTML = `
             <div class="transfer-item-row">
-                <span class="transfer-item-icon">📄</span>
+                <span class="transfer-item-icon">${dirIcon}</span>
                 <span class="transfer-item-name" title="${filename}">${filename}</span>
                 <span class="transfer-item-pct">0%</span>
                 <span class="transfer-item-cancel" title="Cancel">&times;</span>
@@ -473,7 +501,11 @@ class RemoteDesktopApp {
         `;
         item.querySelector('.transfer-item-cancel').addEventListener('click', () => {
             if (this.dcHandler) {
-                this.dcHandler.cancelFileUpload(transferId);
+                if (direction === 'download') {
+                    this.dcHandler.cancelFileDownload(transferId);
+                } else {
+                    this.dcHandler.cancelFileUpload(transferId);
+                }
             }
         });
         list.appendChild(item);
@@ -542,6 +574,20 @@ class RemoteDesktopApp {
             }
         }
         this.floatingToolbar.updateTransferCount(count);
+    }
+
+    _triggerBrowserDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 100);
     }
 
     _handleSettingChange(detail) {

@@ -8,8 +8,12 @@
 #include <QUuid>
 #include <QJsonArray>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QDateTime>
+#include <QDesktopServices>
+#include <QStandardPaths>
+#include <QUrl>
 
 namespace quickdesk {
 
@@ -412,6 +416,58 @@ void ClientManager::cancelFileUpload(const QString& connectionId,
     m_messaging->sendMessage(message);
 }
 
+void ClientManager::startFileDownload(const QString& connectionId)
+{
+    if (!m_messaging || !m_messaging->isReady()) {
+        LOG_WARN("Cannot start file download: messaging not ready");
+        return;
+    }
+
+    QString saveDir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    LOG_INFO("Starting file download for {}, saveDir={}",
+             connectionId.toStdString(), saveDir.toStdString());
+
+    QJsonObject message;
+    message["type"] = "startFileDownload";
+    message["connectionId"] = connectionId;
+    message["saveDir"] = saveDir;
+    m_messaging->sendMessage(message);
+}
+
+void ClientManager::cancelFileDownload(const QString& connectionId,
+                                       const QString& transferId)
+{
+    if (!m_messaging || !m_messaging->isReady()) {
+        LOG_WARN("Cannot cancel file download: messaging not ready");
+        return;
+    }
+
+    LOG_INFO("Cancelling file download: transfer={} connection={}",
+             transferId.toStdString(), connectionId.toStdString());
+
+    QJsonObject message;
+    message["type"] = "cancelFileDownload";
+    message["connectionId"] = connectionId;
+    message["transferId"] = transferId;
+    m_messaging->sendMessage(message);
+}
+
+void ClientManager::openDownloadedFile(const QString& filePath)
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+}
+
+void ClientManager::openContainingFolder(const QString& filePath)
+{
+    QFileInfo fi(filePath);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(fi.absolutePath()));
+}
+
+bool ClientManager::deleteDownloadedFile(const QString& filePath)
+{
+    return QFile::remove(filePath);
+}
+
 bool ClientManager::supportsFileTransfer(const QString& connectionId) const
 {
     auto it = m_connections.find(connectionId);
@@ -553,6 +609,14 @@ void ClientManager::onMessageReceived(const QJsonObject& message)
         handleFileTransferComplete(message);
     } else if (type == "fileTransferError") {
         handleFileTransferError(message);
+    } else if (type == "fileDownloadStarted") {
+        handleFileDownloadStarted(message);
+    } else if (type == "fileDownloadProgress") {
+        handleFileDownloadProgress(message);
+    } else if (type == "fileDownloadComplete") {
+        handleFileDownloadComplete(message);
+    } else if (type == "fileDownloadError") {
+        handleFileDownloadError(message);
     } else if (type == "setFramerateResponse" || type == "setResolutionResponse" || type == "setFramerateBoostResponse" || type == "setBitrateResponse") {
         // Acknowledgement responses - just log success/failure
         bool success = message["success"].toBool();
@@ -1129,6 +1193,58 @@ void ClientManager::handleFileTransferError(const QJsonObject& message)
               errorMessage.toStdString(), transferId.toStdString());
 
     emit fileTransferError(connectionId, transferId, errorMessage);
+}
+
+void ClientManager::handleFileDownloadStarted(const QJsonObject& message)
+{
+    QString connectionId = message["connectionId"].toString();
+    QString transferId = message["transferId"].toString();
+    QString filename = message["filename"].toString();
+    double totalBytes = message["totalBytes"].toDouble();
+
+    LOG_INFO("File download started: {} ({} bytes, transfer={})",
+             filename.toStdString(), static_cast<uint64_t>(totalBytes),
+             transferId.toStdString());
+
+    emit fileDownloadStarted(connectionId, transferId, filename, totalBytes);
+}
+
+void ClientManager::handleFileDownloadProgress(const QJsonObject& message)
+{
+    QString connectionId = message["connectionId"].toString();
+    QString transferId = message["transferId"].toString();
+    QString filename = message["filename"].toString();
+    double bytesReceived = message["bytesReceived"].toDouble();
+    double totalBytes = message["totalBytes"].toDouble();
+
+    emit fileDownloadProgress(connectionId, transferId, filename,
+                              bytesReceived, totalBytes);
+}
+
+void ClientManager::handleFileDownloadComplete(const QJsonObject& message)
+{
+    QString connectionId = message["connectionId"].toString();
+    QString transferId = message["transferId"].toString();
+    QString filename = message["filename"].toString();
+    QString savePath = message["savePath"].toString();
+
+    LOG_INFO("File download complete: {} -> {} (transfer={})",
+             filename.toStdString(), savePath.toStdString(),
+             transferId.toStdString());
+
+    emit fileDownloadComplete(connectionId, transferId, filename, savePath);
+}
+
+void ClientManager::handleFileDownloadError(const QJsonObject& message)
+{
+    QString connectionId = message["connectionId"].toString();
+    QString transferId = message["transferId"].toString();
+    QString errorMessage = message["errorMessage"].toString();
+
+    LOG_ERROR("File download error: {} (transfer={})",
+              errorMessage.toStdString(), transferId.toStdString());
+
+    emit fileDownloadError(connectionId, transferId, errorMessage);
 }
 
 } // namespace quickdesk

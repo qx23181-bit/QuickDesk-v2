@@ -463,6 +463,14 @@ Window {
                 fileDialog.open()
             }
 
+            onDownloadFileRequested: {
+                var connId = currentTabIndex >= 0 && currentTabIndex < connectionModel.count
+                    ? connectionModel.connectionIdAt(currentTabIndex) : ""
+                if (connId && remoteWindow.clientManager) {
+                    remoteWindow.clientManager.startFileDownload(connId)
+                }
+            }
+
             onShowTransferPanelRequested: {
                 fileTransferDrawer.open()
             }
@@ -640,7 +648,9 @@ Window {
                         filename: decodeURIComponent(fname),
                         progress: 0,
                         status: "uploading",
-                        errorMessage: ""
+                        errorMessage: "",
+                        direction: "upload",
+                        savePath: ""
                     })
                 }
                 fileTransferDrawer.open()
@@ -656,7 +666,8 @@ Window {
     property int activeTransferCount: {
         var count = 0
         for (var i = 0; i < transferModel.count; i++) {
-            if (transferModel.get(i).status === "uploading") count++
+            var s = transferModel.get(i).status
+            if (s === "uploading" || s === "downloading") count++
         }
         return count
     }
@@ -693,7 +704,9 @@ Window {
                         filename: filename,
                         progress: 0,
                         status: "uploading",
-                        errorMessage: ""
+                        errorMessage: "",
+                        direction: "upload",
+                        savePath: ""
                     })
                     idx = transferModel.count - 1
                 }
@@ -732,6 +745,47 @@ Window {
             }
             toast.show(qsTr("Upload failed: %1").arg(errorMessage), QDToast.Type.Error)
         }
+
+        function onFileDownloadStarted(connectionId, transferId, filename, totalBytes) {
+            transferModel.append({
+                transferId: transferId,
+                connectionId: connectionId,
+                filename: filename,
+                progress: 0,
+                status: "downloading",
+                errorMessage: "",
+                direction: "download",
+                savePath: ""
+            })
+            fileTransferDrawer.open()
+        }
+
+        function onFileDownloadProgress(connectionId, transferId, filename, bytesReceived, totalBytes) {
+            var idx = remoteWindow.findTransferIndex(transferId)
+            if (idx >= 0) {
+                var pct = totalBytes > 0 ? bytesReceived / totalBytes : 0
+                transferModel.setProperty(idx, "progress", pct)
+            }
+        }
+
+        function onFileDownloadComplete(connectionId, transferId, filename, savePath) {
+            var idx = remoteWindow.findTransferIndex(transferId)
+            if (idx >= 0) {
+                transferModel.setProperty(idx, "status", "complete")
+                transferModel.setProperty(idx, "progress", 1)
+                transferModel.setProperty(idx, "savePath", savePath)
+            }
+            toast.show(qsTr("Download complete: %1").arg(filename), QDToast.Type.Success)
+        }
+
+        function onFileDownloadError(connectionId, transferId, errorMessage) {
+            var idx = remoteWindow.findTransferIndex(transferId)
+            if (idx >= 0) {
+                transferModel.setProperty(idx, "status", "error")
+                transferModel.setProperty(idx, "errorMessage", errorMessage)
+            }
+            toast.show(qsTr("Download failed: %1").arg(errorMessage), QDToast.Type.Error)
+        }
     }
 
     // File Transfer Drawer (right side panel)
@@ -751,9 +805,9 @@ Window {
                 visible: transferModel.count === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                iconSource: FluentIconGlyph.uploadGlyph
+                iconSource: FluentIconGlyph.statusDataTransferGlyph
                 title: qsTr("No Transfers")
-                description: qsTr("Use the menu to upload files to the remote host")
+                description: qsTr("Use the menu to upload or download files")
             }
 
             // Transfer list
@@ -784,9 +838,11 @@ Window {
                             Layout.fillWidth: true
                             spacing: Theme.spacingSmall
 
-                            // File icon
+                            // Direction icon (upload/download)
                             Text {
-                                text: FluentIconGlyph.documentGlyph
+                                text: model.direction === "download"
+                                    ? FluentIconGlyph.downloadGlyph
+                                    : FluentIconGlyph.uploadGlyph
                                 font.family: "Segoe Fluent Icons"
                                 font.pixelSize: Theme.iconSizeMedium
                                 color: {
@@ -808,33 +864,76 @@ Window {
 
                             // Status / action
                             Text {
-                                visible: model.status === "uploading"
+                                visible: model.status === "uploading" || model.status === "downloading"
                                 text: Math.round(model.progress * 100) + "%"
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.textSecondary
                             }
 
-                            // Cancel button (only for uploading)
+                            // Cancel button (for uploading or downloading)
                             QDIconButton {
-                                visible: model.status === "uploading"
+                                visible: model.status === "uploading" || model.status === "downloading"
                                 iconSource: FluentIconGlyph.cancelGlyph
                                 buttonSize: QDIconButton.Size.Small
                                 buttonStyle: QDIconButton.Style.Transparent
                                 onClicked: {
                                     var item = transferModel.get(index)
                                     if (item.transferId && remoteWindow.clientManager) {
-                                        remoteWindow.clientManager.cancelFileUpload(
-                                            item.connectionId, item.transferId)
+                                        if (item.direction === "download") {
+                                            remoteWindow.clientManager.cancelFileDownload(
+                                                item.connectionId, item.transferId)
+                                        } else {
+                                            remoteWindow.clientManager.cancelFileUpload(
+                                                item.connectionId, item.transferId)
+                                        }
                                     }
                                     transferModel.setProperty(index, "status", "cancelled")
                                     transferModel.setProperty(index, "errorMessage", qsTr("Cancelled"))
                                 }
                             }
 
-                            // Success icon
+                            // Completed download actions
+                            Row {
+                                visible: model.status === "complete" && model.direction === "download" && model.savePath !== ""
+                                spacing: 2
+
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.openFileGlyph
+                                    buttonSize: QDIconButton.Size.Small
+                                    buttonStyle: QDIconButton.Style.Transparent
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Open File")
+                                    onClicked: remoteWindow.clientManager.openDownloadedFile(model.savePath)
+                                }
+
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.folderOpenGlyph
+                                    buttonSize: QDIconButton.Size.Small
+                                    buttonStyle: QDIconButton.Style.Transparent
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Open Folder")
+                                    onClicked: remoteWindow.clientManager.openContainingFolder(model.savePath)
+                                }
+
+                                QDIconButton {
+                                    iconSource: FluentIconGlyph.deleteGlyph
+                                    buttonSize: QDIconButton.Size.Small
+                                    buttonStyle: QDIconButton.Style.Transparent
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Delete File")
+                                    onClicked: {
+                                        if (remoteWindow.clientManager.deleteDownloadedFile(model.savePath)) {
+                                            transferModel.setProperty(index, "status", "deleted")
+                                            transferModel.setProperty(index, "errorMessage", qsTr("File deleted"))
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Upload complete icon
                             Text {
-                                visible: model.status === "complete"
+                                visible: model.status === "complete" && (model.direction === "upload" || model.savePath === "")
                                 text: FluentIconGlyph.checkMarkGlyph
                                 font.family: "Segoe Fluent Icons"
                                 font.pixelSize: 14
@@ -843,31 +942,31 @@ Window {
 
                             // Error icon
                             Text {
-                                visible: model.status === "error" || model.status === "cancelled"
-                                text: FluentIconGlyph.errorGlyph
+                                visible: model.status === "error" || model.status === "cancelled" || model.status === "deleted"
+                                text: model.status === "deleted" ? FluentIconGlyph.deleteGlyph : FluentIconGlyph.errorGlyph
                                 font.family: "Segoe Fluent Icons"
                                 font.pixelSize: 14
-                                color: Theme.error
+                                color: model.status === "deleted" ? Theme.textSecondary : Theme.error
                             }
                         }
 
-                        // Progress bar (only for uploading)
+                        // Progress bar (for uploading or downloading)
                         QDProgressBar {
-                            visible: model.status === "uploading"
+                            visible: model.status === "uploading" || model.status === "downloading"
                             Layout.fillWidth: true
                             value: model.progress
                             from: 0
                             to: 1
                         }
 
-                        // Error message
+                        // Status message
                         Text {
-                            visible: (model.status === "error" || model.status === "cancelled") && model.errorMessage !== ""
+                            visible: (model.status === "error" || model.status === "cancelled" || model.status === "deleted") && model.errorMessage !== ""
                             Layout.fillWidth: true
                             text: model.errorMessage
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSmall
-                            color: Theme.error
+                            color: model.status === "deleted" ? Theme.textSecondary : Theme.error
                             elide: Text.ElideRight
                         }
                     }
@@ -887,7 +986,7 @@ Window {
                     onClicked: {
                         for (var i = transferModel.count - 1; i >= 0; i--) {
                             var s = transferModel.get(i).status
-                            if (s === "complete" || s === "error" || s === "cancelled") {
+                            if (s === "complete" || s === "error" || s === "cancelled" || s === "deleted") {
                                 transferModel.remove(i)
                             }
                         }

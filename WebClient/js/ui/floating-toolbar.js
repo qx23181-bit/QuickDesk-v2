@@ -121,6 +121,7 @@ export class FloatingToolbar extends EventTarget {
             { text: 'Lock Screen', icon: '🔒', action: 'lockWorkstation', id: 'lockMenuItem', hidden: true },
             { type: 'separator', id: 'uploadSeparator', hidden: true },
             { text: 'Upload File', icon: '📤', action: 'uploadFile', id: 'uploadMenuItem', hidden: true },
+            { text: 'Download from Host', icon: '📥', action: 'downloadFile', id: 'downloadMenuItem', hidden: true },
             { text: 'Transfers', icon: '📊', action: 'showTransfers', id: 'transfersMenuItem', hidden: true },
             { type: 'separator' },
             { text: 'Disconnect', icon: '✕', action: 'disconnect', destructive: true },
@@ -348,6 +349,10 @@ export class FloatingToolbar extends EventTarget {
                 this.dispatchEvent(new CustomEvent('action', { detail: { action: 'uploadFile' } }));
                 this._hideMenu();
                 break;
+            case 'downloadFile':
+                this.dispatchEvent(new CustomEvent('action', { detail: { action: 'downloadFile' } }));
+                this._hideMenu();
+                break;
             case 'showTransfers':
                 this.dispatchEvent(new CustomEvent('action', { detail: { action: 'showTransfers' } }));
                 this._hideMenu();
@@ -519,6 +524,9 @@ export class FloatingToolbar extends EventTarget {
             (supportsSAS || supportsLock) ? '' : 'none';
         if (uploadItem) uploadItem.style.display = supportsFileTransfer ? '' : 'none';
         if (uploadSep) uploadSep.style.display = supportsFileTransfer ? '' : 'none';
+
+        const downloadItem = this._menuElement.querySelector('#downloadMenuItem');
+        if (downloadItem) downloadItem.style.display = supportsFileTransfer ? '' : 'none';
 
         const transfersItem = this._menuElement.querySelector('#transfersMenuItem');
         if (transfersItem) transfersItem.style.display = supportsFileTransfer ? '' : 'none';
