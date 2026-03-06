@@ -850,11 +850,24 @@ QString MainController::getMcpBinaryPath() const {
     return QDir::toNativeSeparators(QDir::cleanPath(mcpPath));
 }
 
-QString MainController::generateMcpConfig(const QString& clientType) const {
+QJsonObject MainController::buildMcpServerConfig() const {
     auto mcpPath = getMcpBinaryPath();
     QJsonObject serverConfig;
+#ifdef Q_OS_WIN
+    // MCP clients (Cursor, etc.) use Node.js child_process.spawn() which
+    // may split the command on spaces. Use cmd /c to handle paths like
+    // "D:\Program Files\QuickDesk\quickdesk-mcp.exe".
+    serverConfig["command"] = QStringLiteral("cmd");
+    serverConfig["args"] = QJsonArray({QStringLiteral("/c"), mcpPath});
+#else
     serverConfig["command"] = mcpPath;
     serverConfig["args"] = QJsonArray();
+#endif
+    return serverConfig;
+}
+
+QString MainController::generateMcpConfig(const QString& clientType) const {
+    auto serverConfig = buildMcpServerConfig();
 
     QJsonObject mcpServers;
     mcpServers["quickdesk"] = serverConfig;
@@ -941,10 +954,7 @@ int MainController::writeMcpConfig(const QString& clientType) {
         file.close();
     }
 
-    auto mcpPath = getMcpBinaryPath();
-    QJsonObject serverConfig;
-    serverConfig["command"] = mcpPath;
-    serverConfig["args"] = QJsonArray();
+    auto serverConfig = buildMcpServerConfig();
 
     auto servers = existingRoot["mcpServers"].toObject();
     servers["quickdesk"] = serverConfig;

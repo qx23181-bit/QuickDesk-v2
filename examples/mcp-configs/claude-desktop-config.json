@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "quickdesk": {
-      "command": "C:\\Program Files\\QuickDesk\\quickdesk-mcp.exe",
-      "args": []
+      "command": "cmd",
+      "args": ["/c", "C:\\Program Files\\QuickDesk\\quickdesk-mcp.exe"]
     }
   }
 }

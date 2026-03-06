@@ -4,6 +4,7 @@
 #ifndef QUICKDESK_CONTROLLER_MAINCONTROLLER_H
 #define QUICKDESK_CONTROLLER_MAINCONTROLLER_H
 
+#include <QJsonObject>
 #include <QObject>
 #include <QTimer>
 #include <memory>
@@ -154,6 +155,7 @@ public:
     Q_INVOKABLE void startMcpService();
     Q_INVOKABLE void stopMcpService();
     Q_INVOKABLE QString getMcpBinaryPath() const;
+    QJsonObject buildMcpServerConfig() const;
     Q_INVOKABLE QString generateMcpConfig(const QString& clientType) const;
     Q_INVOKABLE void copyMcpConfig(const QString& clientType);
     Q_INVOKABLE QString getMcpConfigPath(const QString& clientType) const;
