@@ -447,6 +447,20 @@ export class Session extends EventTarget {
     async _handleJingleMessage(message) {
         this._log(`Jingle action: ${message.action}`);
 
+        // 过滤不属于本会话的消息（多客户端并发场景）
+        // 信令服务器会将 Host 的所有消息广播给所有 Client，
+        // 当另一个客户端（如 Qt QuickDesk）同时连接同一 Host 时，
+        // 其会话消息也会被转发过来，必须丢弃。
+        if (message.sid && this.jingleBuilder.sessionId &&
+            message.sid !== this.jingleBuilder.sessionId) {
+            this._log(`Ignoring message for different session: sid=${message.sid} (ours=${this.jingleBuilder.sessionId})`);
+            // 仍然回复 IQ result，避免 Host 端超时重试
+            if (message.iqType === 'set' && message.iqId && message.from) {
+                this._sendIqResult(message.iqId, message.from);
+            }
+            return;
+        }
+
         switch (message.action) {
             case 'session-accept':
                 await this._handleSessionAccept(message);
