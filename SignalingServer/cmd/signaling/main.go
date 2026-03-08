@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -29,28 +30,55 @@ func main() {
 
 	// Auto-migrate models
 	log.Println("Running database migrations...")
-	if err := db.AutoMigrate(&models.Device{}, &models.Preset{}); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+	if err := db.AutoMigrate(&models.Device{}, &models.Preset{}, &models.AdminUser{}, &models.Settings{}, &models.User{}); err != nil {
+		log.Printf("Warning: migration error (continuing anyway): %v", err)
 	}
 
 	// Initialize repositories
 	deviceRepo := repository.NewDeviceRepository(db)
 	presetRepo := repository.NewPresetRepository(db)
+	adminUserRepo := repository.NewAdminUserRepository(db)
 
 	// Initialize services
 	deviceService := service.NewDeviceService(deviceRepo, redisClient)
 	authService := service.NewAuthService(redisClient)
 	presetService := service.NewPresetService(presetRepo)
+	adminUserService := service.NewAdminUserService(adminUserRepo)
+
+	// Create initial admin user if not exists
+	ctx := context.Background()
+	_, err := adminUserRepo.GetByUsername(ctx, "admin")
+	if err != nil {
+		log.Println("Creating initial admin user...")
+		initialAdmin := &models.AdminUser{
+			Username: "admin",
+			Password: "admin123",
+			Email:    "admin@quickdesk.com",
+			Role:     "super_admin",
+			Status:   true,
+		}
+
+		hashedPassword, err := service.HashPassword(initialAdmin.Password)
+		if err != nil {
+			log.Fatalf("Failed to hash initial admin password: %v", err)
+		}
+		initialAdmin.Password = hashedPassword
+
+		if err := adminUserRepo.Create(ctx, initialAdmin); err != nil {
+			log.Fatalf("Failed to create initial admin user: %v", err)
+		}
+		log.Println("Initial admin user created successfully")
+	}
 
 	// Initialize handlers
 	apiHandler := handler.NewAPIHandler(deviceService, authService, presetService, cfg)
 	wsHandler := handler.NewWSHandler(deviceService, authService)
-	
+
 	// Set WSHandler reference for API handler (needed for online status checks)
 	apiHandler.SetWSHandler(wsHandler)
 
 	// Create Gin router
-	gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.DebugMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.LoggerMiddleware())
@@ -81,8 +109,12 @@ func main() {
 		}
 
 		// Admin authentication
-		adminAuth := middleware.NewAdminAuth(&cfg.Admin)
+		adminAuth := middleware.NewAdminAuth(adminUserService)
 		v1.POST("/admin/login", adminAuth.Login)
+
+		// Public settings API (no auth required for reading)
+		settingsHandler := handler.NewSettingsHandler(db)
+		v1.GET("/settings", settingsHandler.GetSettings)
 
 		// Admin API (requires admin token, no API key needed)
 		admin := v1.Group("/admin")
@@ -90,6 +122,30 @@ func main() {
 		{
 			admin.GET("/preset", apiHandler.GetAdminPreset)
 			admin.PUT("/preset", apiHandler.UpdateAdminPreset)
+			admin.GET("/stats", apiHandler.GetAdminStats)
+			admin.GET("/system/status", apiHandler.GetSystemStatus)
+			admin.GET("/connections", apiHandler.GetConnectionStatus)
+			admin.GET("/activity", apiHandler.GetActivity)
+			admin.GET("/devices", apiHandler.GetAdminDevices)
+
+			// Admin user management
+			adminUserHandler := handler.NewAdminUserHandler(adminUserService)
+			admin.GET("/users", adminUserHandler.GetAdminUsers)
+			admin.POST("/users", adminUserHandler.CreateAdminUser)
+			admin.PUT("/users/:id", adminUserHandler.UpdateAdminUser)
+			admin.DELETE("/users/:id", adminUserHandler.DeleteAdminUser)
+
+			// User management (普通用户管理)
+			userHandler := handler.NewUserHandler(db)
+			admin.GET("/user-list", userHandler.GetUsers)
+			admin.GET("/user-list/:id", userHandler.GetUser)
+			admin.POST("/user-list", userHandler.CreateUser)
+			admin.PUT("/user-list/:id", userHandler.UpdateUser)
+			admin.DELETE("/user-list/:id", userHandler.DeleteUser)
+			admin.PUT("/user-list/:id/device-count", userHandler.UpdateUserDeviceCount)
+
+			// Settings management (update requires auth)
+			admin.POST("/settings", settingsHandler.UpdateSettings)
 		}
 	}
 

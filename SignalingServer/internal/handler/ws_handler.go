@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
@@ -37,43 +36,21 @@ type ConnectionInfo struct {
 	ClientID string // Only for clients, unique identifier
 }
 
-// jingleIQ is a minimal struct for extracting session ID from Jingle XML
-type jingleIQ struct {
-	XMLName xml.Name   `xml:"iq"`
-	Jingle  jingleElem `xml:"jingle"`
-}
-
-type jingleElem struct {
-	SID string `xml:"sid,attr"`
-}
-
-// extractSessionID extracts the Jingle session ID (sid) from a Jingle XML message.
-// Returns empty string if the message is not a Jingle stanza or has no sid.
-func extractSessionID(message []byte) string {
-	var iq jingleIQ
-	if err := xml.Unmarshal(message, &iq); err != nil {
-		return ""
-	}
-	return iq.Jingle.SID
-}
-
 type WSHandler struct {
-	connections    map[string]*ConnectionInfo // key: connection key
-	deviceClients  map[string][]string        // key: deviceID, value: []clientID
-	sessionClients map[string]string           // key: "deviceID:sid", value: clientID
-	mu             sync.RWMutex
-	deviceService  *service.DeviceService
-	authService    *service.AuthService
-	apiKeyAuth     *middleware.APIKeyAuth
+	connections   map[string]*ConnectionInfo // key: connection key
+	deviceClients map[string][]string        // key: deviceID, value: []clientID
+	mu            sync.RWMutex
+	deviceService *service.DeviceService
+	authService   *service.AuthService
+	apiKeyAuth    *middleware.APIKeyAuth
 }
 
 func NewWSHandler(deviceService *service.DeviceService, authService *service.AuthService) *WSHandler {
 	return &WSHandler{
-		connections:    make(map[string]*ConnectionInfo),
-		deviceClients:  make(map[string][]string),
-		sessionClients: make(map[string]string),
-		deviceService:  deviceService,
-		authService:    authService,
+		connections:   make(map[string]*ConnectionInfo),
+		deviceClients: make(map[string][]string),
+		deviceService: deviceService,
+		authService:   authService,
 	}
 }
 
@@ -256,11 +233,11 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 		
 		// Forward message
 		if isClient {
-			// Client -> Host (also registers session-to-client mapping)
+			// Client -> Host
 			h.forwardToHost(deviceID, clientID, message)
 		} else {
-			// Host -> Client (route by session ID, fallback to broadcast)
-			h.routeToClient(deviceID, message)
+			// Host -> All Clients (broadcast)
+			h.broadcastToClients(deviceID, message)
 		}
 	}
 }
@@ -311,14 +288,6 @@ func (h *WSHandler) unregisterConnection(connectionKey string, deviceID string, 
 			if cid == clientID {
 				h.deviceClients[deviceID] = append(clients[:i], clients[i+1:]...)
 				break
-			}
-		}
-		
-		// Clean up session mappings for this client
-		for key, cid := range h.sessionClients {
-			if cid == clientID {
-				delete(h.sessionClients, key)
-				log.Printf("Session mapping removed: %s (client %s disconnected)", key, clientID)
 			}
 		}
 		
@@ -401,55 +370,8 @@ func (h *WSHandler) broadcastToClients(deviceID string, message []byte) {
 	}
 }
 
-// routeToClient routes a Host message to the correct Client by session ID.
-// If the message contains a Jingle sid that maps to a known client, it is sent
-// only to that client. Otherwise it falls back to broadcasting to all clients.
-func (h *WSHandler) routeToClient(deviceID string, message []byte) {
-	sid := extractSessionID(message)
-	if sid != "" {
-		sessionKey := fmt.Sprintf("%s:%s", deviceID, sid)
-
-		h.mu.RLock()
-		targetClientID, found := h.sessionClients[sessionKey]
-		h.mu.RUnlock()
-
-		if found {
-			connectionKey := fmt.Sprintf("%s_client_%s", deviceID, targetClientID)
-
-			h.mu.RLock()
-			connInfo, exists := h.connections[connectionKey]
-			h.mu.RUnlock()
-
-			if exists {
-				err := connInfo.Conn.WriteMessage(websocket.TextMessage, message)
-				if err != nil {
-					log.Printf("Failed to send to client %s (session %s): %v", targetClientID, sid, err)
-				} else {
-					log.Printf("Server -> Client %s: Routed %d bytes (session %s)", targetClientID, len(message), sid)
-				}
-				return
-			}
-			log.Printf("Client %s for session %s not found in connections, falling back to broadcast", targetClientID, sid)
-		}
-	}
-
-	// Fallback: broadcast to all clients (non-Jingle messages or unknown session)
-	h.broadcastToClients(deviceID, message)
-}
-
 // forwardToHost forwards a message from Client to Host
 func (h *WSHandler) forwardToHost(deviceID string, clientID string, message []byte) {
-	// Register session-to-client mapping from Jingle messages
-	if sid := extractSessionID(message); sid != "" {
-		sessionKey := fmt.Sprintf("%s:%s", deviceID, sid)
-		h.mu.Lock()
-		if existing, ok := h.sessionClients[sessionKey]; !ok || existing != clientID {
-			h.sessionClients[sessionKey] = clientID
-			log.Printf("Session mapping registered: sid=%s -> client=%s (device=%s)", sid, clientID, deviceID)
-		}
-		h.mu.Unlock()
-	}
-
 	hostKey := fmt.Sprintf("%s_host", deviceID)
 	
 	h.mu.RLock()
@@ -478,4 +400,12 @@ func (h *WSHandler) IsHostOnline(deviceID string) bool {
 	
 	_, exists := h.connections[hostKey]
 	return exists
+}
+
+// GetConnectionCount returns the total number of WebSocket connections
+func (h *WSHandler) GetConnectionCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	
+	return len(h.connections)
 }
