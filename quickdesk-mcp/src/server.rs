@@ -13,6 +13,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::event_bus::EventBus;
 use crate::ws_client::WsClient;
 
 fn make_resource(uri: &str, name: &str, description: &str) -> Annotated<RawResource> {
@@ -177,6 +178,44 @@ struct DiagnoseIssueArgs {
     connection_id: String,
 }
 
+// ---- Event-related parameter structs ----
+
+#[derive(Deserialize, JsonSchema)]
+struct WaitForEventParam {
+    /// Event type to wait for, e.g. "connectionStateChanged", "clipboardChanged", "connectionAdded", "videoLayoutChanged". Call list_event_types for all options.
+    event: String,
+    /// Optional filter: JSON object where each key-value pair must match the event data. E.g. {"state": "connected"} will only match events whose data.state == "connected".
+    filter: Option<serde_json::Value>,
+    /// Maximum time to wait in milliseconds. Returns an error if no matching event arrives within this time.
+    timeout_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct WaitForConnectionStateParam {
+    /// Connection ID to monitor
+    connection_id: String,
+    /// Target state to wait for, e.g. "connected", "disconnected", "failed"
+    state: String,
+    /// Maximum time to wait in milliseconds (default: 30000)
+    timeout_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct WaitForClipboardChangeParam {
+    /// Connection ID to monitor
+    connection_id: String,
+    /// Maximum time to wait in milliseconds (default: 10000)
+    timeout_ms: Option<u64>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct GetRecentEventsParam {
+    /// Filter by event type. If empty, returns all event types.
+    event_type: Option<String>,
+    /// Maximum number of events to return (default: 20, max: 100)
+    limit: Option<usize>,
+}
+
 #[derive(Deserialize, JsonSchema)]
 struct MultiDeviceTaskArgs {
     /// Description of the task to perform across devices, e.g. "check disk usage on all servers", "install security updates"
@@ -199,15 +238,18 @@ pub struct QuickDeskMcpServer {
     prompt_router: PromptRouter<Self>,
     ws: WsClient,
     allowed_devices: Vec<String>,
+    event_bus: EventBus,
 }
 
 impl QuickDeskMcpServer {
     pub fn new(ws: WsClient, allowed_devices: Vec<String>) -> Self {
+        let event_bus = ws.event_bus().clone();
         Self {
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
             ws,
             allowed_devices,
+            event_bus,
         }
     }
 
@@ -568,6 +610,143 @@ impl QuickDeskMcpServer {
             Ok(v) => serde_json::to_string_pretty(&v).unwrap_or_default(),
             Err(e) => format!("Error: {e}"),
         }
+    }
+
+    // ---- Event tools ----
+
+    #[tool(description = "Wait for a specific event from the remote desktop. Instead of polling with repeated screenshots, use this to efficiently wait for state changes like connection established, clipboard updated, video layout changed, etc. Returns the matching event data or an error on timeout. Call list_event_types to see all available event types.")]
+    async fn wait_for_event(&self, params: Parameters<WaitForEventParam>) -> String {
+        let p = params.0;
+        let timeout = p.timeout_ms.unwrap_or(30000);
+
+        match self
+            .event_bus
+            .wait_for(&p.event, p.filter.as_ref(), timeout, false)
+            .await
+        {
+            Ok(event) => serde_json::to_string_pretty(&event).unwrap_or_default(),
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(description = "Wait for a remote connection to reach a specific state. Use this after connect_device to wait until the connection is fully established, instead of polling with screenshots. Returns the event data when the target state is reached, or an error on timeout.")]
+    async fn wait_for_connection_state(
+        &self,
+        params: Parameters<WaitForConnectionStateParam>,
+    ) -> String {
+        let p = params.0;
+        let timeout = p.timeout_ms.unwrap_or(30000);
+        let filter = json!({ "connectionId": p.connection_id, "state": p.state });
+
+        // check_history=true: safe because each connect_device creates a unique
+        // connection ID, so a stale match for the same ID cannot exist.
+        match self
+            .event_bus
+            .wait_for("connectionStateChanged", Some(&filter), timeout, true)
+            .await
+        {
+            Ok(event) => serde_json::to_string_pretty(&event).unwrap_or_default(),
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(description = "Wait for the remote clipboard content to change. Use this after copying text on the remote desktop (e.g. via Ctrl+C) to get the clipboard content without polling. Returns the clipboard change event with the new content.")]
+    async fn wait_for_clipboard_change(
+        &self,
+        params: Parameters<WaitForClipboardChangeParam>,
+    ) -> String {
+        let p = params.0;
+        let timeout = p.timeout_ms.unwrap_or(10000);
+        let filter = json!({ "connectionId": p.connection_id });
+
+        // check_history=false: must wait for a NEW clipboard change, not return stale data
+        match self
+            .event_bus
+            .wait_for("clipboardChanged", Some(&filter), timeout, false)
+            .await
+        {
+            Ok(event) => serde_json::to_string_pretty(&event).unwrap_or_default(),
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(description = "Get recent events received from the remote desktop. Returns cached events in chronological order. Useful for checking what happened recently without waiting for new events. Each event has: event (type name), data (payload), timestamp (unix ms).")]
+    async fn get_recent_events(&self, params: Parameters<GetRecentEventsParam>) -> String {
+        let p = params.0;
+        let limit = p.limit.unwrap_or(20).min(100);
+        let events = self
+            .event_bus
+            .recent_events(p.event_type.as_deref(), limit)
+            .await;
+
+        serde_json::to_string_pretty(&events).unwrap_or_default()
+    }
+
+    #[tool(description = "List all supported event types that can be waited on with wait_for_event. Returns the event type names and their descriptions.")]
+    async fn list_event_types(&self) -> String {
+        let types = json!([
+            {
+                "event": "connectionStateChanged",
+                "description": "Fired when a remote connection changes state (connecting, connected, disconnected, failed)",
+                "data_fields": ["connectionId", "state", "hostInfo"]
+            },
+            {
+                "event": "clipboardChanged",
+                "description": "Fired when the remote clipboard content changes",
+                "data_fields": ["connectionId", "text"]
+            },
+            {
+                "event": "connectionAdded",
+                "description": "Fired when a new outgoing connection is created",
+                "data_fields": ["connectionId", "deviceId"]
+            },
+            {
+                "event": "connectionRemoved",
+                "description": "Fired when an outgoing connection is removed",
+                "data_fields": ["connectionId"]
+            },
+            {
+                "event": "videoLayoutChanged",
+                "description": "Fired when the remote desktop video resolution changes",
+                "data_fields": ["connectionId", "width", "height"]
+            },
+            {
+                "event": "hostReady",
+                "description": "Fired when the local host service is ready to accept connections",
+                "data_fields": ["deviceId", "accessCode"]
+            },
+            {
+                "event": "accessCodeChanged",
+                "description": "Fired when the local host access code is refreshed",
+                "data_fields": ["accessCode"]
+            },
+            {
+                "event": "hostClientConnected",
+                "description": "Fired when a remote client connects to this host",
+                "data_fields": ["connectionId"]
+            },
+            {
+                "event": "hostClientDisconnected",
+                "description": "Fired when a remote client disconnects from this host",
+                "data_fields": ["connectionId", "reason"]
+            },
+            {
+                "event": "hostSignalingStateChanged",
+                "description": "Fired when the host signaling server connection state changes",
+                "data_fields": ["state", "retryCount", "nextRetryIn", "error"]
+            },
+            {
+                "event": "hostProcessStatusChanged",
+                "description": "Fired when the host process status changes",
+                "data_fields": ["status"]
+            },
+            {
+                "event": "clientProcessStatusChanged",
+                "description": "Fired when the client process status changes",
+                "data_fields": ["status"]
+            }
+        ]);
+        serde_json::to_string_pretty(&types).unwrap_or_default()
     }
 }
 

@@ -60,6 +60,7 @@ AI配置
 ### AI 优先：唯一内置 MCP 的远程桌面  [ → MCP 接入指南](docs/MCP接入指南.md)
 
 - **内置 MCP Server**：AI Agent 通过标准 MCP 协议连接 —— 无需插件、无需 Hack、零配置
+- **双传输模式**：stdio 模式（AI 客户端启动进程）或 HTTP/SSE 模式（QuickDesk 托管 MCP 服务器，支持多客户端同时连接）
 - **完整的 Computer Use 工具集**：20+ MCP 工具 —— 截图、点击、输入、拖拽、滚动、快捷键、剪贴板等
 - **实时可见**：AI 的所有操作实时显示在 QuickDesk 界面中 —— 用户看到每一次鼠标移动和键盘输入，随时可以干预
 - **多设备 AI 编排**：AI 可同时连接控制多台远程设备 —— 批量自动化、跨设备工作流、设备集群管理
@@ -110,11 +111,13 @@ AI配置
 ## 功能
 
 ### AI 集成（MCP Server）
-- 内置 MCP Server —— AI Agent 通过标准协议连接，支持 Cursor、Claude Desktop 等所有 MCP 客户端
+- 内置 MCP Server —— AI Agent 通过标准协议连接，支持 Cursor、Claude Desktop、VS Code 等所有 MCP 客户端
+- 双传输模式：stdio（AI 客户端启动进程）或 HTTP/SSE（QuickDesk 管理 MCP 服务器，多个 AI 客户端同时连接）
 - 20+ 远程控制工具：截图、鼠标点击/拖拽/滚动、键盘输入/快捷键、按键按下/释放、剪贴板读写、屏幕分辨率查询
 - MCP Resources：实时设备状态、连接信息、主机详情
 - 9 个 MCP Prompts：操作指南、服务器健康检查、批量自动化、故障诊断、屏幕分析、多设备编排、SOP 文档生成
 - 实时事件推送：连接状态变化、剪贴板更新、性能统计
+- 事件驱动工具：wait_for_event、wait_for_connection_state、wait_for_clipboard_change，支持响应式自动化
 - 后台自动化模式：`show_window=false` 无界面批量操作
 - 截图缩放：可调分辨率，加速 AI 处理
 
@@ -162,6 +165,7 @@ graph TD
 
     subgraph MCP["quickdesk-mcp (Rust 桥接)"]
         M1["MCP stdio ↔ WebSocket"]
+        M2["MCP HTTP/SSE ↔ WebSocket"]
     end
 
     subgraph GUI["QuickDesk GUI (Qt 6)"]
@@ -198,6 +202,7 @@ graph TD
     end
 
     AI -- "stdio (JSON-RPC)" --> MCP
+    AI -. "HTTP/SSE" .-> M2
     MCP -- "WebSocket" --> WS
     GUI -- "Native Messaging\n(stdin/stdout JSON)" --> Host
     GUI -- "Native Messaging\n(stdin/stdout JSON)" --> Client

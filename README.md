@@ -57,6 +57,7 @@ AI Config
 ### AI-First: The Only Remote Desktop with MCP Support  [ → MCP Integration Guide](docs/mcp-integration.md)
 
 - **Built-in MCP Server**: AI agents connect via standard MCP protocol — no plugins, no hacks, zero configuration
+- **Dual Transport**: stdio mode (AI client spawns process) or HTTP/SSE mode (QuickDesk hosts MCP server for multi-client access)
 - **Full Computer Use Toolkit**: 20+ MCP tools — screenshot, click, type, drag, scroll, hotkeys, clipboard, and more
 - **Real-Time Visibility**: AI operations are displayed in the QuickDesk GUI in real time — the user sees every mouse move and keystroke, and can intervene at any time
 - **Multi-Device AI Orchestration**: AI can connect to and control multiple remote machines simultaneously — batch automation, cross-device workflows, fleet management
@@ -107,11 +108,13 @@ AI Config
 ## Features
 
 ### AI Integration (MCP Server)
-- Built-in MCP Server — AI agents connect via standard protocol, works with Cursor, Claude Desktop, and any MCP client
+- Built-in MCP Server — AI agents connect via standard protocol, works with Cursor, Claude Desktop, VS Code, and any MCP client
+- Dual transport: stdio (AI client launches process) or HTTP/SSE (QuickDesk manages MCP server, multiple AI clients connect)
 - 20+ remote control tools: screenshot, mouse click/drag/scroll, keyboard type/hotkey, key press/release, clipboard read/write, screen size query
 - MCP Resources: real-time device status, connection info, host details
 - 9 MCP Prompts: operation guide, server health check, batch automation, system diagnosis, screen analysis, multi-device orchestration, SOP documentation
 - Real-time event streaming: connection state changes, clipboard updates, performance stats
+- Event-driven tools: wait_for_event, wait_for_connection_state, wait_for_clipboard_change for reactive automation
 - Background automation mode: `show_window=false` for headless batch operations
 - Screenshot scaling: adjustable resolution for faster AI processing
 
@@ -159,6 +162,7 @@ graph TD
 
     subgraph MCP["quickdesk-mcp (Rust Bridge)"]
         M1["MCP stdio ↔ WebSocket"]
+        M2["MCP HTTP/SSE ↔ WebSocket"]
     end
 
     subgraph GUI["QuickDesk GUI (Qt 6)"]
@@ -195,6 +199,7 @@ graph TD
     end
 
     AI -- "stdio (JSON-RPC)" --> MCP
+    AI -. "HTTP/SSE" .-> M2
     MCP -- "WebSocket" --> WS
     GUI -- "Native Messaging\n(stdin/stdout JSON)" --> Host
     GUI -- "Native Messaging\n(stdin/stdout JSON)" --> Client

@@ -659,10 +659,12 @@ ApplicationWindow {
                     Text {
                         text: {
                             if (!root.mainController) return "AI"
-                            if (!root.mainController.mcpServiceRunning) return qsTr("AI: Off")
+                            var mode = root.mainController.mcpTransportMode === "http"
+                                       ? "HTTP" : "stdio"
+                            if (!root.mainController.mcpServiceRunning) return qsTr("AI [%1]: Off").arg(mode)
                             var clients = root.mainController.mcpConnectedClients
-                            if (clients > 0) return qsTr("AI: %1 agent(s)").arg(clients)
-                            return qsTr("AI: Ready")
+                            if (clients > 0) return qsTr("AI [%1]: %2 agent(s)").arg(mode).arg(clients)
+                            return qsTr("AI [%1]: Ready").arg(mode)
                         }
                         font.pixelSize: Theme.fontSizeSmall
                         color: root.mainController && root.mainController.mcpServiceRunning
@@ -750,9 +752,5 @@ ApplicationWindow {
     McpConfigPopup {
         id: mcpConfigPopup
         mainController: root.mainController
-        
-        onShowToast: function(message, toastType) {
-            toast.show(message, toastType)
-        }
     }
 }

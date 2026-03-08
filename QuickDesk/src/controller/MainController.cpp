@@ -220,6 +220,9 @@ void MainController::shutdown()
 
     LOG_INFO("MainController::shutdown()");
 
+    // Stop MCP HTTP process if running
+    stopMcpHttpProcess();
+
     if (m_wsApiServer) {
         m_wsApiServer->stop();
     }
@@ -767,7 +770,7 @@ void MainController::setupWebSocketApiEvents() {
     });
     connect(m_clientManager.get(), &ClientManager::clipboardReceived,
             this, [this](const QString& connectionId, const QString& text) {
-        m_wsApiServer->broadcastEvent("clipboardReceived", {
+        m_wsApiServer->broadcastEvent("clipboardChanged", {
             {"connectionId", connectionId}, {"text", text}
         });
     });
@@ -812,7 +815,15 @@ void MainController::setupWebSocketApiEvents() {
 
 // MCP Service
 bool MainController::mcpServiceRunning() const {
-    return m_wsApiServer && m_wsApiServer->isListening();
+    // WS API server must be running for either mode
+    if (!m_wsApiServer || !m_wsApiServer->isListening())
+        return false;
+    // HTTP mode additionally requires the HTTP process
+    if (m_mcpTransportMode == "http") {
+        return m_mcpHttpProcess &&
+               m_mcpHttpProcess->state() == QProcess::Running;
+    }
+    return true;
 }
 
 int MainController::mcpConnectedClients() const {
@@ -820,20 +831,124 @@ int MainController::mcpConnectedClients() const {
 }
 
 int MainController::mcpPort() const {
+    if (m_mcpTransportMode == "http") {
+        return m_mcpHttpPort;
+    }
     return m_wsApiServer ? m_wsApiServer->port() : 0;
 }
 
-void MainController::startMcpService() {
-    if (m_wsApiServer && !m_wsApiServer->isListening()) {
-        if (!m_wsApiServer->start()) {
-            LOG_WARN("MCP service failed to start");
-        }
+QString MainController::mcpTransportMode() const {
+    return m_mcpTransportMode;
+}
+
+void MainController::setMcpTransportMode(const QString& mode) {
+    if (m_mcpTransportMode == mode) return;
+    // Only stop the HTTP process when switching away from HTTP mode.
+    // m_wsApiServer stays running — both modes depend on it.
+    if (m_mcpTransportMode == "http") {
+        stopMcpHttpProcess();
     }
+    m_mcpTransportMode = mode;
+    // Auto-start the HTTP process when switching to HTTP mode.
+    if (mode == "http") {
+        startMcpHttpProcess();
+    }
+    emit mcpTransportModeChanged();
+    emit mcpServiceRunningChanged();
+}
+
+int MainController::mcpHttpPort() const {
+    return m_mcpHttpPort;
+}
+
+void MainController::setMcpHttpPort(int port) {
+    if (m_mcpHttpPort == port) return;
+    m_mcpHttpPort = port;
+    emit mcpHttpPortChanged();
+}
+
+QString MainController::mcpHttpUrl() const {
+    if (m_mcpTransportMode == "http" && mcpServiceRunning()) {
+        return QStringLiteral("http://127.0.0.1:%1/mcp").arg(m_mcpHttpPort);
+    }
+    return QString();
+}
+
+void MainController::startMcpService() {
+    // WS API server is started at init and stays running.
+    // This method only needs to start the HTTP process in HTTP mode.
+    if (m_mcpTransportMode == "http") {
+        startMcpHttpProcess();
+    }
+    emit mcpServiceRunningChanged();
 }
 
 void MainController::stopMcpService() {
-    if (m_wsApiServer && m_wsApiServer->isListening()) {
-        m_wsApiServer->stop();
+    // Only stop the HTTP process. WS API server stays running.
+    if (m_mcpTransportMode == "http") {
+        stopMcpHttpProcess();
+    }
+    emit mcpServiceRunningChanged();
+}
+
+void MainController::startMcpHttpProcess() {
+    if (m_mcpHttpProcess &&
+        m_mcpHttpProcess->state() == QProcess::Running) {
+        return;  // Already running
+    }
+
+    auto mcpPath = getMcpBinaryPath();
+    if (!QFileInfo::exists(mcpPath)) {
+        LOG_ERROR("quickdesk-mcp binary not found: {}",
+                  mcpPath.toStdString());
+        return;
+    }
+
+    if (!m_mcpHttpProcess) {
+        m_mcpHttpProcess = new QProcess(this);
+        connect(m_mcpHttpProcess,
+                QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this](int exitCode, QProcess::ExitStatus status) {
+            LOG_INFO("quickdesk-mcp HTTP process exited: code={}, status={}",
+                     exitCode, static_cast<int>(status));
+            emit mcpServiceRunningChanged();
+        });
+        connect(m_mcpHttpProcess, &QProcess::errorOccurred,
+                this, [this](QProcess::ProcessError error) {
+            LOG_ERROR("quickdesk-mcp HTTP process error: {}",
+                      static_cast<int>(error));
+            emit mcpServiceRunningChanged();
+        });
+    }
+
+    auto wsPort = m_wsApiServer ? m_wsApiServer->port() : 9600;
+    QStringList args;
+    args << "--transport" << "http"
+         << "--port" << QString::number(m_mcpHttpPort)
+         << "--ws-url" << QStringLiteral("ws://127.0.0.1:%1").arg(wsPort);
+
+    LOG_INFO("Starting quickdesk-mcp HTTP: {} {}",
+             mcpPath.toStdString(),
+             args.join(" ").toStdString());
+
+    m_mcpHttpProcess->start(mcpPath, args);
+}
+
+void MainController::stopMcpHttpProcess() {
+    if (!m_mcpHttpProcess) return;
+    if (m_mcpHttpProcess->state() == QProcess::NotRunning) return;
+
+    LOG_INFO("Stopping quickdesk-mcp HTTP process");
+    // Close stdin pipe first — the MCP process watches for stdin EOF
+    // as its primary graceful-shutdown signal (on Windows, terminate()
+    // sends WM_CLOSE which console processes cannot receive).
+    m_mcpHttpProcess->closeWriteChannel();
+    if (!m_mcpHttpProcess->waitForFinished(2000)) {
+        m_mcpHttpProcess->terminate();
+        if (!m_mcpHttpProcess->waitForFinished(1000)) {
+            m_mcpHttpProcess->kill();
+            m_mcpHttpProcess->waitForFinished(1000);
+        }
     }
 }
 
@@ -850,38 +965,47 @@ QString MainController::getMcpBinaryPath() const {
     return QDir::toNativeSeparators(QDir::cleanPath(mcpPath));
 }
 
-QJsonObject MainController::buildMcpServerConfig() const {
-    auto mcpPath = getMcpBinaryPath();
+QJsonObject MainController::buildMcpServerConfig(const QString& transport) const {
     QJsonObject serverConfig;
+    if (transport == "http") {
+        // HTTP/SSE mode: URL-based config
+        serverConfig["url"] =
+            QStringLiteral("http://127.0.0.1:%1/mcp").arg(m_mcpHttpPort);
+    } else {
+        // stdio mode: command-based config
+        auto mcpPath = getMcpBinaryPath();
 #ifdef Q_OS_WIN
-    // MCP clients (Cursor, etc.) use Node.js child_process.spawn() which
-    // may split the command on spaces. Use cmd /c to handle paths like
-    // "D:\Program Files\QuickDesk\quickdesk-mcp.exe".
-    serverConfig["command"] = QStringLiteral("cmd");
-    serverConfig["args"] = QJsonArray({QStringLiteral("/c"), mcpPath});
+        serverConfig["command"] = QStringLiteral("cmd");
+        serverConfig["args"] = QJsonArray({QStringLiteral("/c"), mcpPath});
 #else
-    serverConfig["command"] = mcpPath;
-    serverConfig["args"] = QJsonArray();
+        serverConfig["command"] = mcpPath;
+        serverConfig["args"] = QJsonArray();
 #endif
+    }
     return serverConfig;
 }
 
 QString MainController::generateMcpConfig(const QString& clientType) const {
-    auto serverConfig = buildMcpServerConfig();
+    auto serverConfig = buildMcpServerConfig(m_mcpTransportMode);
 
-    QJsonObject mcpServers;
-    mcpServers["quickdesk"] = serverConfig;
+    // Set transport type field per client convention
+    if (m_mcpTransportMode == "http") {
+        if (clientType == "vscode") {
+            serverConfig["type"] = QStringLiteral("http");
+        } else {
+            // Cursor, Claude Desktop, Windsurf: use "sse"
+            serverConfig["type"] = QStringLiteral("sse");
+        }
+    }
+
+    QJsonObject servers;
+    servers["quickdesk"] = serverConfig;
 
     QJsonObject root;
-
-    if (clientType == "cursor") {
-        root["mcpServers"] = mcpServers;
-    } else if (clientType == "claude") {
-        root["mcpServers"] = mcpServers;
-    } else if (clientType == "windsurf") {
-        root["mcpServers"] = mcpServers;
+    if (clientType == "vscode") {
+        root["servers"] = servers;        // VS Code uses "servers"
     } else {
-        root["mcpServers"] = mcpServers;
+        root["mcpServers"] = servers;     // Cursor, Claude, Windsurf use "mcpServers"
     }
 
     return QString::fromUtf8(
@@ -899,46 +1023,39 @@ void MainController::copyMcpConfig(const QString& clientType) {
 QString MainController::getMcpConfigPath(const QString& clientType) const {
     if (clientType == "claude") {
 #ifdef Q_OS_WIN
-        auto appData = QStandardPaths::writableLocation(
-            QStandardPaths::GenericDataLocation);
         return QDir::toNativeSeparators(
-            appData + "/../Roaming/Claude/claude_desktop_config.json");
+            qEnvironmentVariable("APPDATA") + "/Claude/claude_desktop_config.json");
 #elif defined(Q_OS_MAC)
         return QDir::homePath() +
                "/Library/Application Support/Claude/claude_desktop_config.json";
+#endif
+    } else if (clientType == "cursor") {
+#ifdef Q_OS_WIN
+        return QDir::toNativeSeparators(
+            QDir::homePath() + "/.cursor/mcp.json");
+#elif defined(Q_OS_MAC)
+        return QDir::homePath() + "/.cursor/mcp.json";
+#endif
+    } else if (clientType == "windsurf") {
+#ifdef Q_OS_WIN
+        return QDir::toNativeSeparators(
+            QDir::homePath() + "/.codeium/windsurf/mcp_config.json");
+#elif defined(Q_OS_MAC)
+        return QDir::homePath() + "/.codeium/windsurf/mcp_config.json";
+#endif
+    } else if (clientType == "vscode") {
+#ifdef Q_OS_WIN
+        return QDir::toNativeSeparators(
+            qEnvironmentVariable("APPDATA") + "/Code/User/mcp.json");
+#elif defined(Q_OS_MAC)
+        return QDir::homePath() +
+               "/Library/Application Support/Code/User/mcp.json";
 #endif
     }
     return QString();
 }
 
-bool MainController::isClientInstalled(const QString& clientType) const {
-    if (clientType == "claude") {
-#ifdef Q_OS_WIN
-        auto programFiles = QDir::toNativeSeparators(
-            qEnvironmentVariable("ProgramFiles"));
-        auto localAppData = QDir::toNativeSeparators(
-            qEnvironmentVariable("LOCALAPPDATA"));
-        return QFileInfo::exists(programFiles + "\\Claude\\Claude.exe") ||
-               QFileInfo::exists(localAppData + "\\Claude\\Claude.exe") ||
-               QFileInfo::exists(localAppData +
-                                 "\\Programs\\claude-desktop\\Claude.exe");
-#elif defined(Q_OS_MAC)
-        return QFileInfo::exists("/Applications/Claude.app");
-#endif
-    }
-    return false;
-}
-
 int MainController::writeMcpConfig(const QString& clientType) {
-    if (clientType != "claude") {
-        return 2;
-    }
-
-    if (!isClientInstalled(clientType)) {
-        LOG_WARN("Claude Desktop not found, cannot auto-configure");
-        return 1;
-    }
-
     auto configPath = getMcpConfigPath(clientType);
     if (configPath.isEmpty()) {
         return 2;
@@ -954,11 +1071,22 @@ int MainController::writeMcpConfig(const QString& clientType) {
         file.close();
     }
 
-    auto serverConfig = buildMcpServerConfig();
+    auto serverConfig = buildMcpServerConfig(m_mcpTransportMode);
+    if (m_mcpTransportMode == "http") {
+        if (clientType == "vscode") {
+            serverConfig["type"] = QStringLiteral("http");
+        } else {
+            serverConfig["type"] = QStringLiteral("sse");
+        }
+    }
 
-    auto servers = existingRoot["mcpServers"].toObject();
+    // VS Code uses "servers" key; others use "mcpServers"
+    auto serversKey = (clientType == "vscode")
+                          ? QStringLiteral("servers")
+                          : QStringLiteral("mcpServers");
+    auto servers = existingRoot[serversKey].toObject();
     servers["quickdesk"] = serverConfig;
-    existingRoot["mcpServers"] = servers;
+    existingRoot[serversKey] = servers;
 
     QDir().mkpath(QFileInfo(configPath).absolutePath());
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {

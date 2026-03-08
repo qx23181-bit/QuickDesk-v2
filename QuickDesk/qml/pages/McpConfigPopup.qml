@@ -7,14 +7,20 @@ Popup {
     id: popup
     
     property var mainController
-    signal showToast(string message, int toastType)
+
+    function _showToast(message, toastType) {
+        internalToast.show(message, toastType)
+    }
     
-    width: 380
+    width: 400
     height: contentColumn.implicitHeight + padding * 2
     padding: Theme.spacingLarge
     
+    // Anchor position set once on open so only the bottom moves on tab switch
+    property real _anchorY: 0
     x: (parent.width - width) / 2
-    y: parent.height - height - 48
+    y: _anchorY
+    onAboutToShow: _anchorY = (parent.height - height) / 2
     
     modal: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -36,7 +42,10 @@ Popup {
     exit: Transition {
         NumberAnimation { property: "opacity"; from: 1.0; to: 0.0; duration: 100 }
     }
-    
+
+    // Internal state
+    property bool isHttpMode: mainController ? mainController.mcpTransportMode === "http" : false
+
     ColumnLayout {
         id: contentColumn
         width: parent.width
@@ -62,53 +71,49 @@ Popup {
                 Layout.fillWidth: true
             }
         }
-        
-        // Service toggle
-        RowLayout {
+
+        QDDivider { Layout.fillWidth: true }
+
+        // ========== Connection Mode ==========
+        Text {
+            text: qsTr("Connection Mode")
+            font.pixelSize: Theme.fontSizeMedium
+            font.weight: Font.DemiBold
+            color: Theme.text
+        }
+
+        QDToggleButtonGroup {
             Layout.fillWidth: true
-            spacing: Theme.spacingMedium
-            
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-                
-                Text {
-                    text: qsTr("MCP Service")
-                    font.pixelSize: Theme.fontSizeMedium
-                    color: Theme.text
-                }
-                
-                Text {
-                    text: {
-                        if (!mainController) return ""
-                        if (!mainController.mcpServiceRunning) return qsTr("Service is off. AI agents cannot connect.")
-                        var port = mainController.mcpPort
-                        var clients = mainController.mcpConnectedClients
-                        if (clients > 0)
-                            return qsTr("Port %1 · %2 agent(s) connected").arg(port).arg(clients)
-                        return qsTr("Port %1 · Waiting for AI agent").arg(port)
-                    }
-                    font.pixelSize: Theme.fontSizeSmall
-                    color: Theme.textSecondary
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-            }
-            
-            QDSwitch {
-                checked: mainController ? mainController.mcpServiceRunning : false
-                onToggled: {
-                    if (checked) {
-                        mainController.startMcpService()
-                    } else {
-                        mainController.stopMcpService()
-                    }
+            buttonSize: QDToggleButtonGroup.Size.Small
+            options: [
+                { text: qsTr("stdio"), value: "stdio" },
+                { text: qsTr("HTTP/SSE"), value: "http" }
+            ]
+            currentIndex: popup.isHttpMode ? 1 : 0
+            onValueChanged: function(value) {
+                if (mainController) {
+                    mainController.mcpTransportMode = value
                 }
             }
         }
-        
+
+        Text {
+            text: popup.isHttpMode
+                  ? qsTr("HTTP/SSE mode: QuickDesk runs the MCP server. AI clients connect via network.")
+                  : qsTr("stdio mode: AI client launches the MCP process automatically.")
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.textSecondary
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+            Layout.minimumHeight: implicitHeight
+            Layout.preferredHeight: 32
+        }
+
         QDDivider { Layout.fillWidth: true }
-        
+
+
+
+        // ========== Configure AI Client ==========
         // Configure AI Client section
         Text {
             text: qsTr("Configure AI Client")
@@ -118,7 +123,7 @@ Popup {
         }
         
         Text {
-            text: qsTr("Generate MCP config for your AI client and paste it into the config file.")
+            text: qsTr("Auto-configure or copy the config for your AI client.")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.textSecondary
             wrapMode: Text.WordWrap
@@ -148,19 +153,14 @@ Popup {
                     Layout.fillWidth: true
                     height: 44
                     radius: Theme.radiusSmall
-                    color: configBtnMouse.containsMouse
-                           ? Theme.surfaceHover : Theme.surfaceVariant
+                    color: Theme.surfaceVariant
                     border.width: Theme.borderWidthThin
                     border.color: Theme.border
-                    
-                    Behavior on color {
-                        ColorAnimation { duration: Theme.animationDurationFast }
-                    }
                     
                     RowLayout {
                         anchors.fill: parent
                         anchors.leftMargin: Theme.spacingMedium
-                        anchors.rightMargin: Theme.spacingMedium
+                        anchors.rightMargin: Theme.spacingSmall
                         spacing: Theme.spacingSmall
                         
                         Text {
@@ -178,74 +178,60 @@ Popup {
                             Layout.fillWidth: true
                         }
                         
-                        Text {
-                            text: FluentIconGlyph.copyGlyph
-                            font.family: "Segoe Fluent Icons"
-                            font.pixelSize: 12
-                            color: Theme.textSecondary
+                        // Auto-configure button
+                        QDIconButton {
+                            iconSource: FluentIconGlyph.downloadGlyph
+                            buttonSize: QDIconButton.Size.Small
+                            visible: Qt.platform.os === "windows" || Qt.platform.os === "osx"
+                            onClicked: {
+                                var result = mainController.writeMcpConfig(configBtn.modelData.type)
+                                if (result === 0) {
+                                    popup._showToast(
+                                        qsTr("%1 configured! Restart to apply.").arg(configBtn.modelData.name), 0)
+                                } else {
+                                    popup._showToast(
+                                        qsTr("Failed to write config. Copy manually."), 2)
+                                }
+                            }
+                            QDToolTip {
+                                visible: parent.hovered
+                                text: qsTr("Auto-configure %1").arg(configBtn.modelData.name)
+                            }
+                        }
+                        
+                        // Copy config button
+                        QDIconButton {
+                            iconSource: FluentIconGlyph.copyGlyph
+                            buttonSize: QDIconButton.Size.Small
+                            onClicked: {
+                                mainController.copyMcpConfig(configBtn.modelData.type)
+                                popup._showToast(
+                                    qsTr("%1 config copied").arg(configBtn.modelData.name), 0)
+                            }
+                            QDToolTip {
+                                visible: parent.hovered
+                                text: qsTr("Copy %1 config").arg(configBtn.modelData.name)
+                            }
                         }
                     }
-                    
-                    MouseArea {
-                        id: configBtnMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            mainController.copyMcpConfig(configBtn.modelData.type)
-                            popup.close()
-                            popup.showToast(
-                                qsTr("%1 config copied to clipboard").arg(configBtn.modelData.name),
-                                0) // Success
-                        }
-                    }
-                    
-                    QDToolTip {
-                        visible: configBtnMouse.containsMouse
-                        text: qsTr("Copy %1 MCP config to clipboard").arg(configBtn.modelData.name)
-                    }
-                }
-            }
-        }
-        
-        // Claude Desktop: write directly
-        QDButton {
-            Layout.fillWidth: true
-            text: qsTr("Auto-configure Claude Desktop")
-            buttonType: QDButton.Type.Secondary
-            iconText: FluentIconGlyph.settingsGlyph
-            visible: Qt.platform.os === "windows" || Qt.platform.os === "osx"
-            onClicked: {
-                var result = mainController.writeMcpConfig("claude")
-                popup.close()
-                if (result === 0) {
-                    popup.showToast(
-                        qsTr("Claude Desktop configured! Restart Claude to apply."),
-                        0) // Success
-                } else if (result === 1) {
-                    popup.showToast(
-                        qsTr("Claude Desktop not found. Please install it first."),
-                        2) // Error
-                } else {
-                    popup.showToast(
-                        qsTr("Failed to write config. Copy and paste manually."),
-                        2) // Error
                 }
             }
         }
         
         QDDivider { Layout.fillWidth: true }
         
-        // MCP binary path
+        // ========== MCP Binary Path (stdio mode) ==========
         Text {
             text: qsTr("MCP Binary Path")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.textSecondary
+            visible: !popup.isHttpMode
         }
         
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacingSmall
+            visible: !popup.isHttpMode
             
             Rectangle {
                 Layout.fillWidth: true
@@ -275,8 +261,7 @@ Popup {
                 onClicked: {
                     if (mainController) {
                         mainController.copyToClipboard(mainController.getMcpBinaryPath())
-                        popup.close()
-                        popup.showToast(qsTr("Path copied"), 0)
+                        popup._showToast(qsTr("Path copied"), 0)
                     }
                 }
                 
@@ -286,5 +271,94 @@ Popup {
                 }
             }
         }
+
+        // ========== MCP HTTP Service (HTTP mode) ==========
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingSmall
+            visible: popup.isHttpMode
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingMedium
+
+                Text {
+                    text: qsTr("MCP HTTP Service")
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.textSecondary
+                }
+
+                Text {
+                    text: {
+                        if (!mainController) return ""
+                        if (!mainController.mcpServiceRunning)
+                            return qsTr("Starting...")
+                        return qsTr("Running")
+                    }
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.textSecondary
+                }
+
+                Item { Layout.fillWidth: true }
+
+                Rectangle {
+                    width: 10; height: 10
+                    radius: 5
+                    color: mainController && mainController.mcpServiceRunning
+                           ? "#4CAF50" : Theme.textSecondary
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingSmall
+                visible: mainController && mainController.mcpServiceRunning
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 32
+                    radius: Theme.radiusSmall
+                    color: Theme.surfaceVariant
+                    border.width: Theme.borderWidthThin
+                    border.color: Theme.border
+                    clip: true
+
+                    Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingSmall
+                        anchors.rightMargin: Theme.spacingSmall
+                        text: mainController ? mainController.mcpHttpUrl : ""
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.family: "Consolas"
+                        color: Theme.primary
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                }
+
+                QDIconButton {
+                    iconSource: FluentIconGlyph.copyGlyph
+                    buttonSize: QDIconButton.Size.Small
+                    onClicked: {
+                        if (mainController && mainController.mcpHttpUrl) {
+                            mainController.copyToClipboard(mainController.mcpHttpUrl)
+                            popup._showToast(qsTr("URL copied"), 0)
+                        }
+                    }
+                    QDToolTip {
+                        visible: parent.hovered
+                        text: qsTr("Copy endpoint URL")
+                    }
+                }
+            }
+        }
+    }
+
+    // Internal toast (shown above the popup content)
+    QDToast {
+        id: internalToast
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.spacingMedium
     }
 }

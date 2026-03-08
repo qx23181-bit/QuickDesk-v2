@@ -5,6 +5,8 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, oneshot};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use crate::event_bus::{Event, EventBus};
+
 type PendingRequests = Arc<Mutex<HashMap<String, oneshot::Sender<Result<Value, String>>>>>;
 
 #[derive(Clone)]
@@ -17,10 +19,11 @@ pub struct WsClient {
     >>>,
     pending: PendingRequests,
     req_counter: Arc<Mutex<u64>>,
+    event_bus: EventBus,
 }
 
 impl WsClient {
-    pub async fn connect(url: &str, token: Option<&str>) -> Result<Self, String> {
+    pub async fn connect(url: &str, token: Option<&str>, event_bus: EventBus) -> Result<Self, String> {
         let (ws_stream, _) = connect_async(url)
             .await
             .map_err(|e| format!("WebSocket connect failed: {e}"))?;
@@ -32,10 +35,11 @@ impl WsClient {
             sender: Arc::new(Mutex::new(write)),
             pending: pending.clone(),
             req_counter: Arc::new(Mutex::new(0)),
+            event_bus: event_bus.clone(),
         };
 
-        // Spawn reader task to dispatch responses
-        tokio::spawn(Self::reader_loop(read, pending));
+        // Spawn reader task to dispatch responses and events
+        tokio::spawn(Self::reader_loop(read, pending, event_bus));
 
         // Authenticate if token provided
         if let Some(token) = token {
@@ -98,6 +102,7 @@ impl WsClient {
             >,
         >,
         pending: PendingRequests,
+        event_bus: EventBus,
     ) {
         while let Some(msg) = read.next().await {
             let msg = match msg {
@@ -112,7 +117,7 @@ impl WsClient {
                 Err(_) => continue,
             };
 
-            // Only handle responses with "id" field; ignore event pushes
+            // Handle responses with "id" field (request-response pattern)
             if let Some(id) = parsed.get("id").and_then(|v| v.as_str()) {
                 let mut map = pending.lock().await;
                 if let Some(tx) = map.remove(id) {
@@ -129,7 +134,29 @@ impl WsClient {
                     }
                 }
             }
-            // Events (no "id") are silently ignored in MCP bridge
+            // Handle event pushes (messages with "event" field, no "id")
+            else if let Some(event_name) = parsed.get("event").and_then(|v| v.as_str()) {
+                let data = parsed.get("data").cloned().unwrap_or(Value::Null);
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+
+                tracing::debug!("Received event: {} data={}", event_name, data);
+
+                event_bus
+                    .publish(Event {
+                        event: event_name.to_string(),
+                        data,
+                        timestamp,
+                    })
+                    .await;
+            }
         }
+    }
+
+    /// Get a reference to the event bus
+    pub fn event_bus(&self) -> &EventBus {
+        &self.event_bus
     }
 }

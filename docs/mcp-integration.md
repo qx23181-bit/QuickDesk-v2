@@ -4,11 +4,15 @@ QuickDesk includes a built-in [MCP (Model Context Protocol)](https://modelcontex
 
 ## Architecture
 
+QuickDesk MCP supports two transport modes:
+
+### stdio mode (default)
+
 ```
 AI Agent (Claude / Cursor / GPT)
     │  stdio (JSON-RPC 2.0)
     ▼
-quickdesk-mcp (Rust binary)
+quickdesk-mcp (Rust binary)          ← spawned by AI client
     │  WebSocket
     ▼
 QuickDesk GUI (Qt 6)
@@ -17,7 +21,24 @@ QuickDesk GUI (Qt 6)
 Remote Desktop (Chromium Remoting / WebRTC)
 ```
 
-The `quickdesk-mcp` binary acts as a bridge: it speaks MCP over stdio to AI clients and forwards requests to QuickDesk's internal WebSocket API.
+The AI client spawns `quickdesk-mcp` as a child process and communicates via stdin/stdout. This is the simplest setup — just paste a config JSON and go.
+
+### HTTP/SSE mode
+
+```
+AI Agent (Claude / Cursor / GPT)
+    │  HTTP (Streamable HTTP / SSE)
+    ▼
+quickdesk-mcp (Rust binary, HTTP server)  ← spawned by QuickDesk
+    │  WebSocket
+    ▼
+QuickDesk GUI (Qt 6)
+    │  Native Messaging + Shared Memory
+    ▼
+Remote Desktop (Chromium Remoting / WebRTC)
+```
+
+QuickDesk launches `quickdesk-mcp` as a managed HTTP server. AI clients connect via `http://127.0.0.1:18080/mcp`. This mode supports multiple simultaneous AI clients and network-accessible endpoints.
 
 ## Quick Start
 
@@ -27,7 +48,9 @@ Launch QuickDesk normally. The WebSocket API server starts automatically on `ws:
 
 ### 2. Configure Your AI Client
 
-#### Cursor IDE
+#### Option A: stdio mode (recommended for single-client use)
+
+##### Cursor IDE
 
 Create or edit `.cursor/mcp.json` in your project root:
 
@@ -43,7 +66,7 @@ Create or edit `.cursor/mcp.json` in your project root:
 }
 ```
 
-#### Claude Desktop
+##### Claude Desktop
 
 Edit `claude_desktop_config.json`:
 
@@ -61,7 +84,68 @@ Edit `claude_desktop_config.json`:
 }
 ```
 
-#### Any MCP Client
+##### VS Code
+
+Create or edit `.vscode/mcp.json` in your project root:
+
+```json
+{
+  "servers": {
+    "quickdesk": {
+      "type": "stdio",
+      "command": "/path/to/quickdesk-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+#### Option B: HTTP/SSE mode (supports multiple AI clients)
+
+In QuickDesk, open MCP settings → switch to **HTTP/SSE** mode → toggle the MCP HTTP Service **ON**. QuickDesk will launch the `quickdesk-mcp` HTTP server automatically.
+
+##### Cursor IDE
+
+```json
+{
+  "mcpServers": {
+    "quickdesk": {
+      "type": "sse",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+##### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "quickdesk": {
+      "type": "sse",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+##### VS Code
+
+```json
+{
+  "servers": {
+    "quickdesk": {
+      "type": "http",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+> **Note:** VS Code uses `"type": "http"` and the top-level key `"servers"`. Other clients use `"type": "sse"` and `"mcpServers"`.
+
+#### Any MCP Client (stdio)
 
 `quickdesk-mcp` is a standard MCP stdio server. Any client that supports `stdio` transport can use it:
 
@@ -69,16 +153,21 @@ Edit `claude_desktop_config.json`:
 quickdesk-mcp [--ws-url ws://127.0.0.1:9600] [--token YOUR_TOKEN]
 ```
 
-| Argument | Default | Description |
-|----------|---------|-------------|
-| `--ws-url` | `ws://127.0.0.1:9600` | QuickDesk WebSocket API URL |
-| `--token` | (none) | Full-control auth token |
-| `--readonly-token` | (none) | Read-only auth token (screenshot + status only, no input) |
-| `--allowed-devices` | (none) | Comma-separated device ID whitelist |
-| `--rate-limit` | `0` | Max API requests per minute (0 = unlimited) |
-| `--session-timeout` | `0` | Session timeout in seconds (0 = no timeout) |
+#### CLI Arguments
 
-All arguments can also be set via environment variables: `QUICKDESK_TOKEN`, `QUICKDESK_READONLY_TOKEN`, `QUICKDESK_ALLOWED_DEVICES`, `QUICKDESK_RATE_LIMIT`, `QUICKDESK_SESSION_TIMEOUT`.
+| Argument | Default | Env Variable | Description |
+|----------|---------|--------------|-------------|
+| `--ws-url` | `ws://127.0.0.1:9600` | `QUICKDESK_WS_URL` | QuickDesk WebSocket API URL |
+| `--token` | (none) | `QUICKDESK_TOKEN` | Full-control auth token |
+| `--readonly-token` | (none) | `QUICKDESK_READONLY_TOKEN` | Read-only auth token |
+| `--allowed-devices` | (none) | `QUICKDESK_ALLOWED_DEVICES` | Comma-separated device ID whitelist |
+| `--rate-limit` | `0` | `QUICKDESK_RATE_LIMIT` | Max API requests per minute (0 = unlimited) |
+| `--session-timeout` | `0` | `QUICKDESK_SESSION_TIMEOUT` | Session timeout in seconds (0 = no timeout) |
+| `--transport` | `stdio` | `QUICKDESK_TRANSPORT` | Transport mode: `stdio` or `http` |
+| `--port` | `8080` | `QUICKDESK_HTTP_PORT` | HTTP server port (HTTP mode only) |
+| `--host` | `127.0.0.1` | `QUICKDESK_HTTP_HOST` | HTTP server bind address (HTTP mode only) |
+| `--cors-origin` | (none) | `QUICKDESK_CORS_ORIGIN` | Allowed CORS origin (HTTP mode only) |
+| `--stateless` | `false` | — | Use stateless HTTP sessions (HTTP mode only) |
 
 ### 3. Use It
 
@@ -142,6 +231,85 @@ Once configured, your AI agent can use QuickDesk tools directly. Example convers
 | `get_status` | Overall system status (host/client processes, signaling). |
 | `get_signaling_status` | Signaling server connection status. |
 | `refresh_access_code` | Generate a new access code for the local host. |
+
+### Events (Reactive Automation)
+
+Instead of polling with repeated screenshots, these tools let AI agents efficiently wait for state changes on the remote desktop.
+
+| Tool | Description |
+|------|-------------|
+| `wait_for_event` | Wait for a specific event type. Returns the matching event data, or an error on timeout. |
+| `wait_for_connection_state` | Wait for a connection to reach a target state (e.g. `connected`, `disconnected`). |
+| `wait_for_clipboard_change` | Wait for the remote clipboard content to change. Returns the new content. |
+| `get_recent_events` | Get recent events from the event buffer, optionally filtered by type. |
+| `list_event_types` | List all supported event types and their data fields. |
+
+#### `wait_for_event`
+
+Generic event waiter. Use this when you need to wait for any event type, with optional data field filtering.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `event` | string | ✅ | — | Event type to wait for (see Event Types below) |
+| `filter` | object | — | — | JSON object where each key-value pair must match the event data. E.g. `{"state": "connected"}` only matches events whose `data.state == "connected"`. |
+| `timeout_ms` | integer | — | `30000` | Maximum wait time in milliseconds |
+
+**Returns:** The matching event object `{event, data, timestamp}` or an error string on timeout.
+
+#### `wait_for_connection_state`
+
+Convenience wrapper for waiting on connection state transitions. Use after `connect_device` to wait until the connection is fully established, instead of polling screenshots.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `connection_id` | string | ✅ | — | Connection ID to monitor |
+| `state` | string | ✅ | — | Target state: `connected`, `disconnected`, `failed` |
+| `timeout_ms` | integer | — | `30000` | Maximum wait time in milliseconds |
+
+**Returns:** The `connectionStateChanged` event data, or an error on timeout.
+
+#### `wait_for_clipboard_change`
+
+Wait for the remote clipboard to change. Use after sending Ctrl+C on the remote desktop to get the copied text without polling.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `connection_id` | string | ✅ | — | Connection ID to monitor |
+| `timeout_ms` | integer | — | `10000` | Maximum wait time in milliseconds |
+
+**Returns:** The `clipboardChanged` event including the new clipboard text, or an error on timeout.
+
+#### `get_recent_events`
+
+Query the event ring buffer for recently received events. Useful for checking what happened while the AI was performing other operations.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `event_type` | string | — | — | Filter by event type. If omitted, returns all types. |
+| `limit` | integer | — | `20` | Max events to return (capped at 100) |
+
+**Returns:** Array of events in chronological order (oldest first).
+
+#### `list_event_types`
+
+Returns all supported event types and their data fields. No parameters.
+
+### Event Types Reference
+
+| Event Type | Description | Data Fields |
+|------------|-------------|-------------|
+| `connectionStateChanged` | Connection state transition | `connectionId`, `state`, `hostInfo` |
+| `clipboardChanged` | Remote clipboard content changed | `connectionId`, `text` |
+| `connectionAdded` | New outgoing connection created | `connectionId`, `deviceId` |
+| `connectionRemoved` | Outgoing connection removed | `connectionId` |
+| `videoLayoutChanged` | Remote desktop video resolution changed | `connectionId`, `width`, `height` |
+| `hostReady` | Local host service ready to accept connections | `deviceId`, `accessCode` |
+| `accessCodeChanged` | Local host access code refreshed | `accessCode` |
+| `hostClientConnected` | Remote client connected to this host | `connectionId`, ... |
+| `hostClientDisconnected` | Remote client disconnected from this host | `connectionId`, `reason` |
+| `hostSignalingStateChanged` | Host signaling connection state changed | `state`, `retryCount`, `nextRetryIn`, `error` |
+| `hostProcessStatusChanged` | Host process status changed | `status` |
+| `clientProcessStatusChanged` | Client process status changed | `status` |
 
 ## MCP Resources
 
@@ -277,6 +445,43 @@ keyboard_hotkey(keys=["ctrl", "c"])
 get_clipboard()                → get selected text
 ```
 
+### Event-Driven: Connect and Wait
+
+Use `wait_for_connection_state` instead of polling with `list_connections`:
+
+```
+conn_id = connect_device(device_id="111222333", access_code="888888")
+wait_for_connection_state(connection_id=conn_id, state="connected", timeout_ms=15000)
+screenshot()                   → screen is ready
+```
+
+### Event-Driven: Copy Text from Remote
+
+Use `wait_for_clipboard_change` instead of polling `get_clipboard`:
+
+```
+mouse_drag(start_x=100, start_y=200, end_x=500, end_y=200)
+keyboard_hotkey(keys=["ctrl", "c"])
+wait_for_clipboard_change(connection_id=conn_id, timeout_ms=5000)
+                               → returns the copied text immediately when clipboard updates
+```
+
+### Reactive: Wait for Video Layout Change
+
+```
+// Wait for the remote desktop resolution to change (e.g. after window resize)
+wait_for_event(event="videoLayoutChanged", filter={"connectionId": conn_id}, timeout_ms=10000)
+screenshot()                                         → capture the new layout
+```
+
+### Checking Event History
+
+```
+get_recent_events(event_type="connectionStateChanged", limit=10)
+                               → see recent connection state changes
+get_recent_events(limit=50)    → see all recent events
+```
+
 ## Building from Source
 
 ```bash
@@ -308,6 +513,13 @@ All dependencies are managed by Cargo. Key crates:
 ### "Connection refused" on startup
 
 Make sure QuickDesk is running. The WebSocket API server must be active at `ws://127.0.0.1:9600`.
+
+### HTTP/SSE mode: "Cannot connect to MCP server"
+
+1. Check that QuickDesk has the MCP HTTP Service toggled **ON** (in HTTP/SSE mode)
+2. Verify the URL matches the endpoint shown in QuickDesk MCP settings (default: `http://127.0.0.1:18080/mcp`)
+3. Ensure no firewall is blocking the HTTP port
+4. For remote access, the `--host` must be `0.0.0.0` (not `127.0.0.1`)
 
 ### Screenshot returns empty
 

@@ -1,0 +1,98 @@
+use std::sync::Arc;
+
+use axum::Router;
+use rmcp::transport::streamable_http_server::{
+    StreamableHttpServerConfig, StreamableHttpService,
+    session::local::LocalSessionManager,
+};
+use tokio::io::AsyncReadExt;
+use tokio_util::sync::CancellationToken;
+
+use crate::config::AppConfig;
+use crate::server::QuickDeskMcpServer;
+use crate::ws_client::WsClient;
+
+/// Start the MCP server over streamable HTTP transport.
+///
+/// The server exposes:
+/// - `POST /mcp` — MCP JSON-RPC over SSE (initialize, tool calls, etc.)
+/// - `GET  /mcp` — SSE event stream (for stateful sessions)
+/// - `DELETE /mcp` — terminate a session
+/// - `GET  /health` — simple health-check endpoint
+pub async fn start_http(
+    config: &AppConfig,
+    ws: WsClient,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ct = CancellationToken::new();
+    let allowed_devices = config.allowed_devices.clone().unwrap_or_default();
+    let session_manager = Arc::new(LocalSessionManager::default());
+
+    let mcp_service: StreamableHttpService<QuickDeskMcpServer, LocalSessionManager> =
+        StreamableHttpService::new(
+            move || {
+                Ok(QuickDeskMcpServer::new(
+                    ws.clone(),
+                    allowed_devices.clone(),
+                ))
+            },
+            session_manager,
+            StreamableHttpServerConfig {
+                stateful_mode: !config.stateless,
+                cancellation_token: ct.child_token(),
+                ..Default::default()
+            },
+        );
+
+    let app = Router::new()
+        .route(
+            "/health",
+            axum::routing::get(|| async { "ok" }),
+        )
+        .nest_service("/mcp", mcp_service);
+
+    let bind_addr = format!("{}:{}", config.host, config.port);
+    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+    let local_addr = listener.local_addr()?;
+
+    tracing::info!("MCP HTTP server listening on http://{}", local_addr);
+    tracing::info!(
+        "  MCP endpoint: http://{}/mcp",
+        local_addr
+    );
+    tracing::info!(
+        "  Health check: http://{}/health",
+        local_addr
+    );
+    tracing::info!(
+        "  Session mode: {}",
+        if config.stateless { "stateless" } else { "stateful" }
+    );
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            let ctrl_c = tokio::signal::ctrl_c();
+            let stdin_eof = async {
+                // Detect parent process closing our stdin pipe.
+                // On Windows, QProcess::terminate() sends WM_CLOSE which
+                // console apps can't receive. Instead, the parent closes
+                // our stdin before calling terminate, and we detect the EOF.
+                let mut stdin = tokio::io::stdin();
+                let mut buf = [0u8; 1];
+                loop {
+                    match stdin.read(&mut buf).await {
+                        Ok(0) | Err(_) => break, // EOF or error
+                        Ok(_) => continue,        // ignore stray bytes
+                    }
+                }
+            };
+            tokio::select! {
+                _ = ctrl_c => {},
+                _ = stdin_eof => {},
+            }
+            tracing::info!("Shutting down HTTP server...");
+            ct.cancel();
+        })
+        .await?;
+
+    Ok(())
+}

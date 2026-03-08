@@ -6,6 +6,7 @@
 
 #include <QJsonObject>
 #include <QObject>
+#include <QProcess>
 #include <QTimer>
 #include <memory>
 
@@ -57,6 +58,9 @@ class MainController : public QObject {
     Q_PROPERTY(bool mcpServiceRunning READ mcpServiceRunning NOTIFY mcpServiceRunningChanged)
     Q_PROPERTY(int mcpConnectedClients READ mcpConnectedClients NOTIFY mcpConnectedClientsChanged)
     Q_PROPERTY(int mcpPort READ mcpPort NOTIFY mcpServiceRunningChanged)
+    Q_PROPERTY(QString mcpTransportMode READ mcpTransportMode WRITE setMcpTransportMode NOTIFY mcpTransportModeChanged)
+    Q_PROPERTY(int mcpHttpPort READ mcpHttpPort WRITE setMcpHttpPort NOTIFY mcpHttpPortChanged)
+    Q_PROPERTY(QString mcpHttpUrl READ mcpHttpUrl NOTIFY mcpServiceRunningChanged)
 
     // Signaling state properties (convenience for QML)
     Q_PROPERTY(QString signalingState READ signalingState NOTIFY signalingStateChanged)
@@ -145,6 +149,11 @@ public:
     bool mcpServiceRunning() const;
     int mcpConnectedClients() const;
     int mcpPort() const;
+    QString mcpTransportMode() const;
+    void setMcpTransportMode(const QString& mode);
+    int mcpHttpPort() const;
+    void setMcpHttpPort(int port);
+    QString mcpHttpUrl() const;
 
     // Access code auto-refresh info
     QString nextAccessCodeRefreshTime() const;
@@ -155,11 +164,10 @@ public:
     Q_INVOKABLE void startMcpService();
     Q_INVOKABLE void stopMcpService();
     Q_INVOKABLE QString getMcpBinaryPath() const;
-    QJsonObject buildMcpServerConfig() const;
+    QJsonObject buildMcpServerConfig(const QString& transport = "stdio") const;
     Q_INVOKABLE QString generateMcpConfig(const QString& clientType) const;
     Q_INVOKABLE void copyMcpConfig(const QString& clientType);
-    Q_INVOKABLE QString getMcpConfigPath(const QString& clientType) const;
-    Q_INVOKABLE bool isClientInstalled(const QString& clientType) const;
+    Q_INVOKABLE QString getMcpConfigPath(const QString& clientType) const;    
 
     // Returns: 0 = success, 1 = client not installed, 2 = write failed
     Q_INVOKABLE int writeMcpConfig(const QString& clientType);
@@ -181,6 +189,8 @@ signals:
     void requestShowRemoteWindow(const QString& connectionId, const QString& deviceId);
     void mcpServiceRunningChanged();
     void mcpConnectedClientsChanged();
+    void mcpTransportModeChanged();
+    void mcpHttpPortChanged();
 
 private slots:
     void onHostProcessStarted();
@@ -228,6 +238,13 @@ private:
     QString getDefaultServerUrl() const;
     void setupWebSocketApiEvents();
 
+    // MCP HTTP process management
+    void startMcpHttpProcess();
+    void stopMcpHttpProcess();
+
+    QProcess* m_mcpHttpProcess = nullptr;
+    QString m_mcpTransportMode = QStringLiteral("stdio");
+    int m_mcpHttpPort = 18080;
     bool m_isShutdown = false;
 };
 

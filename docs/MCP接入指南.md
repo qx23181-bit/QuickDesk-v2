@@ -4,11 +4,15 @@ QuickDesk 内置 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/
 
 ## 架构
 
+QuickDesk MCP 支持两种传输模式：
+
+### stdio 模式（默认）
+
 ```
 AI Agent (Claude / Cursor / GPT)
     │  stdio (JSON-RPC 2.0)
     ▼
-quickdesk-mcp (Rust 桥接程序)
+quickdesk-mcp (Rust 桥接程序)          ← 由 AI 客户端启动
     │  WebSocket
     ▼
 QuickDesk GUI (Qt 6)
@@ -17,7 +21,24 @@ QuickDesk GUI (Qt 6)
 远程桌面 (Chromium Remoting / WebRTC)
 ```
 
-`quickdesk-mcp` 充当桥梁：对上通过 stdio 与 AI 客户端通信（标准 MCP 协议），对下通过 WebSocket 调用 QuickDesk 内部 API。
+AI 客户端将 `quickdesk-mcp` 作为子进程启动，通过 stdin/stdout 通信。最简单的配置方式——粘贴一段 JSON 即可。
+
+### HTTP/SSE 模式
+
+```
+AI Agent (Claude / Cursor / GPT)
+    │  HTTP (Streamable HTTP / SSE)
+    ▼
+quickdesk-mcp (Rust HTTP 服务器)       ← 由 QuickDesk 启动和管理
+    │  WebSocket
+    ▼
+QuickDesk GUI (Qt 6)
+    │  Native Messaging + 共享内存
+    ▼
+远程桌面 (Chromium Remoting / WebRTC)
+```
+
+QuickDesk 启动并管理 `quickdesk-mcp` HTTP 服务器进程。AI 客户端通过 `http://127.0.0.1:18080/mcp` 连接。此模式支持多个 AI 客户端同时连接，也支持网络远程访问。
 
 ## 快速开始
 
@@ -27,7 +48,9 @@ QuickDesk GUI (Qt 6)
 
 ### 2. 配置 AI 客户端
 
-#### Cursor IDE
+#### 方式 A：stdio 模式（推荐单客户端使用）
+
+##### Cursor IDE
 
 在项目根目录创建或编辑 `.cursor/mcp.json`：
 
@@ -43,7 +66,7 @@ QuickDesk GUI (Qt 6)
 }
 ```
 
-#### Claude Desktop
+##### Claude Desktop
 
 编辑 `claude_desktop_config.json`：
 
@@ -61,7 +84,68 @@ QuickDesk GUI (Qt 6)
 }
 ```
 
-#### 通用 MCP 客户端
+##### VS Code
+
+在项目根目录创建或编辑 `.vscode/mcp.json`：
+
+```json
+{
+  "servers": {
+    "quickdesk": {
+      "type": "stdio",
+      "command": "/path/to/quickdesk-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+#### 方式 B：HTTP/SSE 模式（支持多客户端同时连接）
+
+在 QuickDesk 中打开 MCP 设置 → 切换到 **HTTP/SSE** 模式 → 打开 MCP HTTP 服务开关。QuickDesk 会自动启动 `quickdesk-mcp` HTTP 服务器。
+
+##### Cursor IDE
+
+```json
+{
+  "mcpServers": {
+    "quickdesk": {
+      "type": "sse",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+##### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "quickdesk": {
+      "type": "sse",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+##### VS Code
+
+```json
+{
+  "servers": {
+    "quickdesk": {
+      "type": "http",
+      "url": "http://127.0.0.1:18080/mcp"
+    }
+  }
+}
+```
+
+> **注意：** VS Code 使用 `"type": "http"` 和顶层键 `"servers"`。其他客户端（Cursor、Claude Desktop、Windsurf）使用 `"type": "sse"` 和 `"mcpServers"`。
+
+#### 通用 MCP 客户端（stdio）
 
 `quickdesk-mcp` 是标准的 MCP stdio 服务器，任何支持 `stdio` 传输的客户端都可以使用：
 
@@ -69,16 +153,21 @@ QuickDesk GUI (Qt 6)
 quickdesk-mcp [--ws-url ws://127.0.0.1:9600] [--token YOUR_TOKEN]
 ```
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `--ws-url` | `ws://127.0.0.1:9600` | QuickDesk WebSocket API 地址 |
-| `--token` | （空） | 完全控制权限的认证 Token |
-| `--readonly-token` | （空） | 只读权限的认证 Token（仅截图+状态查询，不能输入） |
-| `--allowed-devices` | （空） | 允许连接的设备 ID 白名单（逗号分隔） |
-| `--rate-limit` | `0` | 每分钟最大 API 请求数（0 = 不限制） |
-| `--session-timeout` | `0` | 会话空闲超时（秒，0 = 不超时） |
+#### 命令行参数
 
-所有参数也可通过环境变量设置：`QUICKDESK_TOKEN`、`QUICKDESK_READONLY_TOKEN`、`QUICKDESK_ALLOWED_DEVICES`、`QUICKDESK_RATE_LIMIT`、`QUICKDESK_SESSION_TIMEOUT`。
+| 参数 | 默认值 | 环境变量 | 说明 |
+|------|--------|----------|------|
+| `--ws-url` | `ws://127.0.0.1:9600` | `QUICKDESK_WS_URL` | QuickDesk WebSocket API 地址 |
+| `--token` | （空） | `QUICKDESK_TOKEN` | 完全控制权限的认证 Token |
+| `--readonly-token` | （空） | `QUICKDESK_READONLY_TOKEN` | 只读权限的认证 Token |
+| `--allowed-devices` | （空） | `QUICKDESK_ALLOWED_DEVICES` | 允许连接的设备 ID 白名单（逗号分隔） |
+| `--rate-limit` | `0` | `QUICKDESK_RATE_LIMIT` | 每分钟最大 API 请求数（0 = 不限制） |
+| `--session-timeout` | `0` | `QUICKDESK_SESSION_TIMEOUT` | 会话空闲超时（秒，0 = 不超时） |
+| `--transport` | `stdio` | `QUICKDESK_TRANSPORT` | 传输模式：`stdio` 或 `http` |
+| `--port` | `8080` | `QUICKDESK_HTTP_PORT` | HTTP 服务器端口（仅 HTTP 模式） |
+| `--host` | `127.0.0.1` | `QUICKDESK_HTTP_HOST` | HTTP 服务器绑定地址（仅 HTTP 模式） |
+| `--cors-origin` | （空） | `QUICKDESK_CORS_ORIGIN` | 允许的 CORS 来源（仅 HTTP 模式） |
+| `--stateless` | `false` | — | 使用无状态 HTTP 会话（仅 HTTP 模式） |
 
 ### 3. 开始使用
 
@@ -142,6 +231,85 @@ quickdesk-mcp [--ws-url ws://127.0.0.1:9600] [--token YOUR_TOKEN]
 | `get_status` | 系统总体状态（Host/Client 进程、信令服务器）。 |
 | `get_signaling_status` | 信令服务器连接状态。 |
 | `refresh_access_code` | 刷新本机访问码。 |
+
+### 事件（响应式自动化）
+
+相比轮询截图，事件工具让 AI Agent 高效等待远程桌面的状态变化。
+
+| 工具 | 说明 |
+|------|------|
+| `wait_for_event` | 等待特定事件发生。返回匹配的事件数据，超时则返回错误。 |
+| `wait_for_connection_state` | 等待连接达到目标状态（如 `connected`、`disconnected`）。 |
+| `wait_for_clipboard_change` | 等待远程剪贴板内容变化，返回新内容。 |
+| `get_recent_events` | 获取事件环形缓冲区中的近期事件，可按类型过滤。 |
+| `list_event_types` | 列出所有支持的事件类型及其数据字段。 |
+
+#### `wait_for_event`
+
+通用事件等待器。可等待任意事件类型，支持数据字段过滤。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `event` | string | ✅ | — | 等待的事件类型（见下方事件类型参考） |
+| `filter` | object | — | — | JSON 对象，每个键值对必须与事件数据匹配。例如 `{"state": "connected"}` 仅匹配 `data.state == "connected"` 的事件。 |
+| `timeout_ms` | integer | — | `30000` | 最大等待时间（毫秒） |
+
+**返回：** 匹配的事件对象 `{event, data, timestamp}`，或超时错误字符串。
+
+#### `wait_for_connection_state`
+
+连接状态等待的便捷封装。在 `connect_device` 后使用，等待连接完全建立，无需轮询截图。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `connection_id` | string | ✅ | — | 要监控的连接 ID |
+| `state` | string | ✅ | — | 目标状态：`connected`、`disconnected`、`failed` |
+| `timeout_ms` | integer | — | `30000` | 最大等待时间（毫秒） |
+
+**返回：** `connectionStateChanged` 事件数据，或超时错误。
+
+#### `wait_for_clipboard_change`
+
+等待远程剪贴板变化。在远程桌面按下 Ctrl+C 后使用，无需轮询即可获取复制的文本。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `connection_id` | string | ✅ | — | 要监控的连接 ID |
+| `timeout_ms` | integer | — | `10000` | 最大等待时间（毫秒） |
+
+**返回：** `clipboardChanged` 事件（含新剪贴板文本），或超时错误。
+
+#### `get_recent_events`
+
+查询事件环形缓冲区中的近期事件。适用于检查 AI 执行其他操作期间发生了什么。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `event_type` | string | — | — | 按事件类型过滤。为空则返回所有类型。 |
+| `limit` | integer | — | `20` | 最大返回数量（上限 100） |
+
+**返回：** 按时间顺序排列的事件数组（最早的在前）。
+
+#### `list_event_types`
+
+返回所有支持的事件类型及其数据字段。无参数。
+
+### 事件类型参考
+
+| 事件类型 | 说明 | 数据字段 |
+|----------|------|----------|
+| `connectionStateChanged` | 连接状态变化 | `connectionId`、`state`、`hostInfo` |
+| `clipboardChanged` | 远程剪贴板内容变化 | `connectionId`、`text` |
+| `connectionAdded` | 新建出站连接 | `connectionId`、`deviceId` |
+| `connectionRemoved` | 出站连接已移除 | `connectionId` |
+| `videoLayoutChanged` | 远程桌面视频分辨率变化 | `connectionId`、`width`、`height` |
+| `hostReady` | 本机主机服务就绪，可接受连接 | `deviceId`、`accessCode` |
+| `accessCodeChanged` | 本机主机接入码已刷新 | `accessCode` |
+| `hostClientConnected` | 远程客户端连入本机 | `connectionId`、... |
+| `hostClientDisconnected` | 远程客户端从本机断开 | `connectionId`、`reason` |
+| `hostSignalingStateChanged` | 主机信令连接状态变化 | `state`、`retryCount`、`nextRetryIn`、`error` |
+| `hostProcessStatusChanged` | 主机进程状态变化 | `status` |
+| `clientProcessStatusChanged` | 客户端进程状态变化 | `status` |
 
 ## MCP Resources（资源）
 
@@ -277,6 +445,43 @@ keyboard_hotkey(keys=["ctrl", "c"])
 get_clipboard()                → 获取选中的文本
 ```
 
+### 事件驱动：连接并等待就绪
+
+使用 `wait_for_connection_state` 替代轮询 `list_connections`：
+
+```
+conn_id = connect_device(device_id="111222333", access_code="888888")
+wait_for_connection_state(connection_id=conn_id, state="connected", timeout_ms=15000)
+screenshot()                   → 屏幕已就绪
+```
+
+### 事件驱动：从远程复制文本
+
+使用 `wait_for_clipboard_change` 替代轮询 `get_clipboard`：
+
+```
+mouse_drag(start_x=100, start_y=200, end_x=500, end_y=200)
+keyboard_hotkey(keys=["ctrl", "c"])
+wait_for_clipboard_change(connection_id=conn_id, timeout_ms=5000)
+                               → 剪贴板更新后立即返回复制的文本
+```
+
+### 响应式：等待视频布局变化
+
+```
+// 等待远程桌面分辨率变化（例如窗口调整大小后）
+wait_for_event(event="videoLayoutChanged", filter={"connectionId": conn_id}, timeout_ms=10000)
+screenshot()                                         → 捕获新布局
+```
+
+### 查看事件历史
+
+```
+get_recent_events(event_type="connectionStateChanged", limit=10)
+                               → 查看最近的连接状态变化
+get_recent_events(limit=50)    → 查看所有近期事件
+```
+
 ## 从源码编译
 
 ```bash
@@ -308,6 +513,13 @@ cargo build --release
 ### 启动时提示 "Connection refused"
 
 确保 QuickDesk 已启动。WebSocket API 服务器需要运行在 `ws://127.0.0.1:9600`。
+
+### HTTP/SSE 模式："无法连接 MCP 服务器"
+
+1. 确认 QuickDesk 已切换到 HTTP/SSE 模式并打开了 MCP HTTP 服务开关
+2. 检查 URL 是否与 QuickDesk MCP 设置中显示的端点一致（默认：`http://127.0.0.1:18080/mcp`）
+3. 确认防火墙未拦截 HTTP 端口
+4. 如需远程访问，`--host` 应设为 `0.0.0.0`（而不是 `127.0.0.1`）
 
 ### 截图返回空
 

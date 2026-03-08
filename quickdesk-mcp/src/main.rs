@@ -1,38 +1,15 @@
+mod config;
+mod event_bus;
+mod http_transport;
 mod server;
 mod ws_client;
 
 use clap::Parser;
+use config::{AppConfig, TransportMode};
+use event_bus::EventBus;
 use rmcp::ServiceExt;
 use rmcp::transport::stdio;
 use tracing_subscriber::EnvFilter;
-
-#[derive(Parser)]
-#[command(name = "quickdesk-mcp", about = "MCP bridge for QuickDesk remote desktop")]
-struct Cli {
-    /// QuickDesk WebSocket server URL
-    #[arg(long, default_value = "ws://127.0.0.1:9600")]
-    ws_url: String,
-
-    /// Authentication token for full-control access
-    #[arg(long, env = "QUICKDESK_TOKEN")]
-    token: Option<String>,
-
-    /// Authentication token for read-only access (screenshot, status only — no input)
-    #[arg(long, env = "QUICKDESK_READONLY_TOKEN")]
-    readonly_token: Option<String>,
-
-    /// Comma-separated list of allowed device IDs (restrict which devices AI can connect to)
-    #[arg(long, env = "QUICKDESK_ALLOWED_DEVICES", value_delimiter = ',')]
-    allowed_devices: Option<Vec<String>>,
-
-    /// Maximum API requests per minute per client (0 = unlimited)
-    #[arg(long, env = "QUICKDESK_RATE_LIMIT", default_value = "0")]
-    rate_limit: i32,
-
-    /// Session timeout in seconds (0 = no timeout)
-    #[arg(long, env = "QUICKDESK_SESSION_TIMEOUT", default_value = "0")]
-    session_timeout: i32,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -41,31 +18,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_writer(std::io::stderr)
         .init();
 
-    let cli = Cli::parse();
+    let config = AppConfig::parse();
 
-    tracing::info!("Connecting to QuickDesk at {}", cli.ws_url);
+    tracing::info!("Connecting to QuickDesk at {}", config.ws_url);
 
-    let auth_token = cli.token.as_deref().or(cli.readonly_token.as_deref());
-    let ws = ws_client::WsClient::connect(&cli.ws_url, auth_token).await?;
+    // Create event bus for WebSocket event bridging (caches up to 500 recent events)
+    let event_bus = EventBus::new(500);
 
-    if let Some(ref devices) = cli.allowed_devices {
+    let auth_token = config.auth_token();
+    let ws = ws_client::WsClient::connect(&config.ws_url, auth_token, event_bus).await?;
+
+    if let Some(ref devices) = config.allowed_devices {
         tracing::info!("Allowed devices: {:?}", devices);
     }
-    if cli.rate_limit > 0 {
-        tracing::info!("Rate limit: {} requests/minute", cli.rate_limit);
+    if config.rate_limit > 0 {
+        tracing::info!("Rate limit: {} requests/minute", config.rate_limit);
     }
-    if cli.session_timeout > 0 {
-        tracing::info!("Session timeout: {}s", cli.session_timeout);
+    if config.session_timeout > 0 {
+        tracing::info!("Session timeout: {}s", config.session_timeout);
     }
 
-    tracing::info!("Connected. Starting MCP server on stdio...");
-
-    let mcp_server = server::QuickDeskMcpServer::new(
-        ws,
-        cli.allowed_devices.unwrap_or_default(),
-    );
-    let service = mcp_server.serve(stdio()).await?;
-    service.waiting().await?;
+    match config.transport {
+        TransportMode::Stdio => {
+            tracing::info!("Starting MCP server on stdio...");
+            let mcp_server = server::QuickDeskMcpServer::new(
+                ws,
+                config.allowed_devices.unwrap_or_default(),
+            );
+            let service = mcp_server.serve(stdio()).await?;
+            service.waiting().await?;
+        }
+        TransportMode::Http => {
+            http_transport::start_http(&config, ws).await?;
+        }
+    }
 
     Ok(())
 }
