@@ -18,18 +18,27 @@ export class IceConfigFetcher {
 
     /**
      * Fetch ICE server configuration from the signaling server.
+     * If user TURN servers are configured, skip remote fetch and use local config.
+     *
+     * @param {Array} userIceServers
      * @returns {Promise<Array>} iceServers array for RTCPeerConnection
      */
-    async getIceServers() {
+    async getIceServers(userIceServers = []) {
+        if (userIceServers.length > 0) {
+            console.log('[IceConfigFetcher] User ICE servers configured, skip remote fetch');
+            return [...userIceServers];
+        }
+
         try {
             const fetched = await this._fetchFromServer();
             if (fetched && fetched.length > 0) {
                 console.log(`[IceConfigFetcher] Fetched ${fetched.length} server(s) from signaling`);
-                return fetched;
+                return [...fetched];
             }
         } catch (e) {
             console.warn('[IceConfigFetcher] Fetch failed:', e.message);
         }
+
         return [];
     }
 
@@ -91,3 +100,5 @@ function wsUrlToHttpUrl(wsUrl) {
     }
     return httpUrl;
 }
+
+

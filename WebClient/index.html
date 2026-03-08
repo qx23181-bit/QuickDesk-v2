@@ -504,6 +504,46 @@
                         <input type="text" id="settingsServerUrl" class="form-input" data-i18n-placeholder="settings.signalingServer.placeholder" placeholder="ws://qdsignaling.quickcoder.cc:8000" />
                     </div>
                 </div>
+
+                <div class="setting-section">
+                    <div class="setting-section-title" data-i18n="settings.iceCustom">自定义服务器</div>
+                    <div id="userServerList"></div>
+                    <div id="noUserServers" class="empty-state" style="padding: 16px 0;">
+                        <p data-i18n="settings.noCustomServers">暂无自定义服务器</p>
+                    </div>
+                </div>
+
+                <div class="separator"></div>
+
+                <div class="setting-section">
+                    <div class="setting-section-title" data-i18n="settings.addTurn">添加 TURN 服务器</div>
+                    <div class="form-group">
+                        <input type="text" id="turnUrl" class="form-input" data-i18n-placeholder="settings.turnUrl.placeholder" placeholder="turn:your-server.com:3478" />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <input type="text" id="turnUsername" class="form-input" data-i18n-placeholder="settings.turnUsername.placeholder" placeholder="用户名" />
+                        </div>
+                        <div class="form-group">
+                            <input type="password" id="turnPassword" class="form-input" data-i18n-placeholder="settings.turnPassword.placeholder" placeholder="密码" />
+                        </div>
+                    </div>
+                    <button id="addTurnBtn" class="btn btn-primary btn-sm" data-i18n="settings.addTurnButton">添加 TURN 服务器</button>
+                </div>
+
+                <div class="separator"></div>
+
+                <div class="setting-section">
+                    <div class="setting-section-title" data-i18n="settings.addStun">添加 STUN 服务器</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <input type="text" id="stunUrl" class="form-input" data-i18n-placeholder="settings.stunUrl.placeholder" placeholder="stun:stun.l.google.com:19302" />
+                        </div>
+                        <div style="flex-shrink:0;display:flex;align-items:flex-end;padding-bottom:16px">
+                            <button id="addStunBtn" class="btn btn-primary btn-sm" data-i18n="settings.addButton">添加</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Video Settings -->

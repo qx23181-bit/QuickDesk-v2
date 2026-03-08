@@ -6,6 +6,7 @@
  */
 
 import { ConnectionHistory } from './storage/connection-history.js';
+import { IceServerStorage } from './storage/ice-server-storage.js';
 import { t, applyI18n, getLocale, setLocale, getSupportedLocales } from './i18n.js';
 
 class QuickDeskApp {
@@ -21,6 +22,7 @@ class QuickDeskApp {
         this._initConnectForm();
         this._initSettings();
         this._renderHistory();
+        this._renderUserServers();
 
         this._loadSavedServerUrl();
         this._applyUrlParams();
@@ -208,6 +210,9 @@ class QuickDeskApp {
     // ==================== Settings ====================
 
     _initSettings() {
+        document.getElementById('addTurnBtn')?.addEventListener('click', () => this._addTurnServer());
+        document.getElementById('addStunBtn')?.addEventListener('click', () => this._addStunServer());
+
         const settingsServerUrl = document.getElementById('settingsServerUrl');
         const connectServerUrl = document.getElementById('serverUrl');
         if (settingsServerUrl) {
@@ -231,6 +236,89 @@ class QuickDeskApp {
                 localStorage.setItem('quickdesk_video_codec', codecSelect.value);
                 this._showToast(t('settings.codecChanged', { codec: codecSelect.value }), 'info');
             });
+        }
+    }
+
+    _renderUserServers() {
+        const container = document.getElementById('userServerList');
+        const noServers = document.getElementById('noUserServers');
+        if (!container) return;
+
+        const servers = IceServerStorage.getAll();
+        container.innerHTML = '';
+
+        if (servers.length === 0) {
+            if (noServers) noServers.style.display = '';
+            return;
+        }
+
+        if (noServers) noServers.style.display = 'none';
+
+        servers.forEach((server, index) => {
+            const url = Array.isArray(server.urls) ? server.urls[0] : server.urls;
+            const isTurn = url && (url.startsWith('turn:') || url.startsWith('turns:'));
+            const item = document.createElement('div');
+            item.className = 'server-item';
+            item.innerHTML = `
+                <span class="server-type-badge ${isTurn ? 'turn' : 'stun'}">${isTurn ? 'TURN' : 'STUN'}</span>
+                <span class="server-url">${this._escapeHtml(url)}</span>
+                <button class="icon-btn danger" title="${t('history.delete')}">✕</button>`;
+
+            item.querySelector('.icon-btn').addEventListener('click', () => {
+                IceServerStorage.removeAt(index);
+                this._renderUserServers();
+                this._showToast(t('settings.serverDeleted'), 'info');
+            });
+
+            container.appendChild(item);
+        });
+    }
+
+    _addTurnServer() {
+        const url = document.getElementById('turnUrl')?.value?.trim();
+        const username = document.getElementById('turnUsername')?.value?.trim();
+        const password = document.getElementById('turnPassword')?.value?.trim();
+
+        if (!url || !username || !password) {
+            this._showToast(t('settings.turnInfoRequired'), 'error');
+            return;
+        }
+
+        if (!url.startsWith('turn:') && !url.startsWith('turns:')) {
+            this._showToast(t('settings.turnUrlInvalid'), 'error');
+            return;
+        }
+
+        if (IceServerStorage.addTurnServer(url, username, password)) {
+            document.getElementById('turnUrl').value = '';
+            document.getElementById('turnUsername').value = '';
+            document.getElementById('turnPassword').value = '';
+            this._renderUserServers();
+            this._showToast(t('settings.turnAdded'), 'success');
+        } else {
+            this._showToast(t('settings.serverAddFailed'), 'error');
+        }
+    }
+
+    _addStunServer() {
+        const url = document.getElementById('stunUrl')?.value?.trim();
+
+        if (!url) {
+            this._showToast(t('settings.stunUrlRequired'), 'error');
+            return;
+        }
+
+        if (!url.startsWith('stun:') && !url.startsWith('stuns:')) {
+            this._showToast(t('settings.stunUrlInvalid'), 'error');
+            return;
+        }
+
+        if (IceServerStorage.addStunServer(url)) {
+            document.getElementById('stunUrl').value = '';
+            this._renderUserServers();
+            this._showToast(t('settings.stunAdded'), 'success');
+        } else {
+            this._showToast(t('settings.serverAddFailed'), 'error');
         }
     }
 
