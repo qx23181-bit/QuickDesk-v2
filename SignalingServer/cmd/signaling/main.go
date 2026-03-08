@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,7 +31,7 @@ func main() {
 
 	// Auto-migrate models
 	log.Println("Running database migrations...")
-	if err := db.AutoMigrate(&models.Device{}, &models.Preset{}, &models.AdminUser{}, &models.Settings{}, &models.User{}); err != nil {
+	if err := db.AutoMigrate(&models.Device{}, &models.Preset{}, &models.AdminUser{}, &models.Settings{}, &models.User{}, &models.UserDevice{}, &models.UserDeviceLog{}, &models.ConnectionHistory{}); err != nil {
 		log.Printf("Warning: migration error (continuing anyway): %v", err)
 	}
 
@@ -108,6 +109,46 @@ func main() {
 			clientAPI.GET("/ice-config", apiHandler.GetIceConfig)
 		}
 
+		// User authentication (public, no API key required)
+		userAuth := handler.NewUserAuth(db)
+		go userAuth.CleanupLoop()
+		v1.POST("/user/register", userAuth.Register)
+		v1.POST("/user/login", userAuth.Login)
+
+		// User device binding APIs (需要用户登录)
+		userDeviceHandler := handler.NewUserDeviceHandler(db)
+		userAPI := v1.Group("/user")
+		userAPI.Use(userAuth.AuthRequired())
+		{
+			userAPI.GET("/devices", func(c *gin.Context) {
+				// 从token获取用户ID
+				userID := userAuth.GetUserIDFromToken(c)
+				if userID == 0 {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "无法获取用户信息"})
+					return
+				}
+				// 调用GetUserDevices接口
+				c.Request.URL.RawQuery = "user_id=" + fmt.Sprintf("%d", userID)
+				userDeviceHandler.GetUserDevices(c)
+			})
+			userAPI.POST("/devices/bind", userDeviceHandler.BindDevice)
+			userAPI.POST("/devices/unbind", userDeviceHandler.UnbindDevice)
+			userAPI.POST("/devices/quick-connect", userDeviceHandler.QuickConnectBind)
+			userAPI.GET("/devices/check", userDeviceHandler.CheckDeviceBinding)
+			userAPI.POST("/devices/record", userDeviceHandler.RecordConnection)
+			userAPI.GET("/devices/logs", func(c *gin.Context) {
+				// 从token获取用户ID
+				userID := userAuth.GetUserIDFromToken(c)
+				if userID == 0 {
+					c.JSON(http.StatusUnauthorized, gin.H{"error": "无法获取用户信息"})
+					return
+				}
+				// 调用GetUserDeviceLogs接口
+				c.Request.URL.RawQuery = "user_id=" + fmt.Sprintf("%d", userID)
+				userDeviceHandler.GetUserDeviceLogs(c)
+			})
+		}
+
 		// Admin authentication
 		adminAuth := middleware.NewAdminAuth(adminUserService)
 		v1.POST("/admin/login", adminAuth.Login)
@@ -144,6 +185,16 @@ func main() {
 			admin.DELETE("/user-list/:id", userHandler.DeleteUser)
 			admin.PUT("/user-list/:id/device-count", userHandler.UpdateUserDeviceCount)
 
+			// User device binding management (用户设备绑定管理)
+			userDeviceHandler := handler.NewUserDeviceHandler(db)
+			admin.GET("/user-devices", userDeviceHandler.GetAllBindings)
+			admin.GET("/user-devices/user/:user_id", userDeviceHandler.GetUserDevices)
+			admin.GET("/user-devices/device/:device_id", userDeviceHandler.GetDeviceUsers)
+			admin.POST("/user-devices/bind", userDeviceHandler.BindDevice)
+			admin.POST("/user-devices/unbind", userDeviceHandler.UnbindDevice)
+			admin.PUT("/user-devices/name", userDeviceHandler.UpdateDeviceName)
+			admin.GET("/user-devices/logs/:user_id", userDeviceHandler.GetUserDeviceLogs)
+
 			// Settings management (update requires auth)
 			admin.POST("/settings", settingsHandler.UpdateSettings)
 		}
@@ -166,8 +217,16 @@ func main() {
 		wsHandler.HandleWebSocket(c)
 	})
 
+	// Root path redirect to admin
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(302, "/admin/")
+	})
+
 	// Admin UI (embedded Vue frontend)
 	handler.RegisterAdminUI(router, signaling.WebDistFS)
+
+	// WebClient static files (remote.html, etc.)
+	handler.RegisterWebClientUI(router)
 
 	// Start server
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
