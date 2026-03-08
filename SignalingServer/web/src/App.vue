@@ -77,7 +77,7 @@ const activeMenu = computed(() => {
   return route.path
 })
 const currentTitle = computed(() => route.meta?.title || '')
-const isLoginPage = computed(() => route.name === 'Login')
+const isLoginPage = computed(() => ['Login', 'UserLogin', 'Register', 'UserConsole', 'RemoteConsole', 'Profile'].includes(route.name))
 
 // 检测是否为移动设备
 const isMobile = ref(window.innerWidth < 768)

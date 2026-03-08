@@ -56,7 +56,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getDevices } from '../api/device.js'
+import { getDevices } from '../api/admin_device.js'
 import { Monitor, Refresh } from '@element-plus/icons-vue'
 
 const loading = ref(false)
